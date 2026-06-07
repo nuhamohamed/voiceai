@@ -2,6 +2,7 @@
 
 **Owner:** Tony · **Roadmap:** Phase 4 · **Requirements:** LIV-01..04
 **Calls:** Nuha's `retrieve()` + Nuha's voice config. **The demo runs in your code.**
+**How (source-verified):** see `prds/04-LIVE-AGENT-DESIGN.md` — phased plan, exact APIs, decisions.
 
 ## Mission
 
@@ -15,8 +16,9 @@ Build **the agent** — the LiveKit thing that joins the standup, listens, takes
    ```python
    async def on_user_turn_completed(self, turn_ctx, new_message):
        chunks = await retrieve(new_message.text_content, persona_id)  # Nuha's function
-       turn_ctx.add_message(role="system", content=format(chunks)) # inject A's real context
-       # LiveKit's LLM plugin answers; TTS speaks it in A's voice (Nuha's config)
+       turn_ctx.add_message(role="assistant", content=format(chunks)) # inject A's real context
+       # ^ LiveKit RAG docs use role="assistant" (Moss page shows "system"); see design spec
+       # LLM answers; voice = cached clone WAV (Phase 1) / Qwen tts_node (Phase 2) — NOT a 1-line plugin
        show_trace(chunks)   # 🔎 Moss → ref  (the visible moat)
    ```
 4. **LIV-04** On adjourn → summarize the standup → post action items to a **Slack** channel.
