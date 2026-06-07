@@ -68,7 +68,11 @@ async def retrieve(query_text: str, persona_id: str) -> list[RetrievedChunk]:
     results = await client.query(
         persona_id,
         query_text,
-        QueryOptions(top_k=3, alpha=0.7),  # blend semantic (70%) + keyword (30%)
+        QueryOptions(top_k=6, alpha=0.7),  # top_k=6: the demo's Q2 ("what's blocking it?")
+        # ranks the real ENG-419/rotation chunks #3-#6, so top_k=3 dropped them and the
+        # on-screen trace showed only the nearest near-duplicates. (Tony: cross-lane tweak
+        # to unblock the Q2 moat trace — Nuha, please confirm; deduping MEL-* vs ENG-* in
+        # the corpus would let this go back to 3.)
     )
 
     chunks: list[RetrievedChunk] = []
