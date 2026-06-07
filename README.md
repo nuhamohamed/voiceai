@@ -1,39 +1,43 @@
 # Standup Proxy
 
-**When a teammate can't make standup, their AI clone shows up instead.** It joins the call in their cloned voice, gives their update, and answers the team's follow-up questions about their work. Every answer is grounded in that person's real context (Linear, Slack, calendar) retrieved live, with the exact source shown on screen as the clone speaks.
+**When you can't make a meeting, send your clone.** Standup Proxy is a personalized AI clone that joins meetings on your behalf and represents you, as you. It knows what you are working on, gives your update in your own cloned voice, answers the team's questions about your work, and asks the questions you would ask, so you can skip the meeting without falling out of the loop.
 
 Built at the Moss Conversational AI Hackathon. Python, LiveKit, and Moss.
 
 ## The problem
 
-Standups break when someone is out. The team loses ten minutes guessing where their work stands, decisions stall waiting on a status nobody has, and the absent person spends the next morning re-answering the same questions in Slack.
+A lot of meetings don't need all of you, just the part of you that knows your work. But skipping has a cost: the team loses ten minutes guessing where your work stands, decisions stall on a status nobody has, and you spend the next morning re-answering the same questions in Slack. Today the only options are attend and lose the time, or skip and lose the context.
 
 ## What it does
 
-The missing teammate's clone is a real participant in the meeting:
+Standup Proxy gives you a third option: send a clone that is actually you.
 
-- **Joins in their cloned voice** and delivers their standup update.
-- **Answers live follow-ups** the way the person would, for example "what's the status of the auth migration?" and "what's actually blocking it?"
-- **Grounded in their real work, not guesses.** Every answer is built from context retrieved live from a Moss index of that person's Linear tickets, Slack threads, and calendar.
-- **Shows its work.** The retrieved source appears on screen at the moment the clone speaks it, so you can see where the answer came from.
-- **Leaves a trail.** After the meeting it posts a summary with action items to Slack.
+- **Knows your work.** It is grounded in your real context, your Linear tickets, Slack threads, and calendar, so it can speak to what you are actually doing.
+- **Joins as you, in your voice.** It appears in the meeting as a participant and speaks in your cloned voice.
+- **Gives your update and answers for you.** It delivers your standup and fields follow-up questions about your work the way you would.
+- **Asks on your behalf.** It is an agent, not a recorder, so it can also ask the questions you would ask to get the information you need out of the meeting.
+- **Brings it back.** After the meeting it reports what happened, with action items.
 
-## Why it is more than a chatbot
+## What makes it different
 
-The hard part, and the thing you can watch happen on screen, is that the clone says the right *real* specifics: "Ivan flagged sliding-window refresh-token rotation, tracked as ENG-419, and it is blocking the prod rollout." A detail like that can't be invented by a generic model. It has to be retrieved from the person's actual context. We show that retrieved chunk on screen as the clone speaks, so the grounding is visible, not just claimed.
+It is not a note-taker. Note-takers transcribe and summarize a meeting after the fact; they don't know you, and they don't act for you. Standup Proxy is a clone of you: it knows what you are working on, it represents you in the room, and it is agentic, it both answers and asks on your behalf.
+
+Think of it as your assistant. You are the boss, you hand off the meeting, and your clone goes, participates as you, and comes back with what matters. The point is not notes after the fact. The point is being present, as yourself, without being there.
+
+And it stays honest: every answer is built from context retrieved live from your real work, and you can see the exact source on screen as the clone speaks, so the team can trust that it is really you talking, not a generic model guessing.
 
 ## How it works
 
 ```mermaid
 flowchart TB
-    src["A teammate's real work<br/>Linear, Slack, calendar"]
-    moss[("Moss<br/>a semantic index of their context")]
+    src["Your real work<br/>Linear, Slack, calendar"]
+    moss[("Moss<br/>a semantic index of your context")]
     src -->|indexed ahead of time| moss
 
-    subgraph room["The standup, live in a LiveKit room"]
-        q["Someone asks the clone a question"]
+    subgraph room["The meeting, live in a LiveKit room"]
+        q["Your clone listens, answers, and asks on your behalf"]
         ret["Retrieve the matching context from Moss"]
-        ans["Clone answers in the teammate's voice"]
+        ans["Clone speaks in your voice"]
         screen["The retrieved source shows on screen"]
         q --> ret
         ret --> ans
@@ -41,28 +45,28 @@ flowchart TB
     end
 
     moss -.->|queried live| ret
-    ans --> slack["After the meeting: a Slack summary with action items"]
+    ans --> slack["After the meeting: a report with action items"]
 ```
 
 ## Built on
 
-- **LiveKit** runs the real-time meeting: the room, turn-taking, speech-to-text, and the clone joining as a participant.
-- **Moss** does the semantic search over each person's indexed work context. This live retrieval is what makes the answers real.
-- **Voice cloning** lets the update and the answers be spoken in the teammate's own voice.
+- **LiveKit** runs the real-time meeting: the room, turn-taking, speech-to-text, and your clone joining as a participant.
+- **Moss** indexes your work context and does the live semantic search that lets the clone speak to what you are actually doing.
+- **Voice cloning** lets your clone speak in your own voice.
 
 ## Run the demo
 
 Two sets of credentials: LiveKit (in `agent-py/.env.local`) and Moss (in `.env`).
 
 ```bash
-# 1. Index a teammate's work context into Moss (once, or whenever it changes)
+# 1. Index your work context into Moss (once, or whenever it changes)
 uv run --project agent-py python -m brain.ingest
 
 # 2. Run the agent and the web app together
-pnpm dev      # open http://localhost:3000, click "Start call", allow the mic
+pnpm dev      # open http://localhost:3000, click "Join standup", allow the mic
 ```
 
-In the call, ask "What's the status of the auth migration?", then "What's actually blocking it?". The clone answers in the cloned voice while the retrieved context appears on screen.
+In the meeting, ask "What's the status of the auth migration?", then "What's actually blocking it?". The clone answers in the cloned voice while the context it used appears on screen.
 
 Text-only check, no room or voice:
 
