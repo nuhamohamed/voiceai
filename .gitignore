@@ -28,6 +28,3 @@ skills-lock.json
 
 # Audio caches (pre-cached demo lines may be large)
 *.wav.tmp
-
-# Generated locally by open-dashboard.command (per-person, not shared)
-docs/activity.json

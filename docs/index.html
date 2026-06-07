@@ -204,26 +204,6 @@
     }
 
     .load-error { color: var(--muted); font-style: italic; font-size: 0.82rem; }
-
-    /* Activity feed (git history) */
-    #activity h2 {
-      font-size: 0.75rem; font-weight: 600; text-transform: uppercase;
-      letter-spacing: 0.06em; color: var(--muted); margin-bottom: 0.75rem;
-    }
-    #activity-log {
-      background: var(--surface); border: 1px solid var(--border);
-      border-radius: 10px; padding: 1rem; font-family: monospace;
-      font-size: 0.8rem; max-height: 340px; overflow-y: auto;
-    }
-    .commit-row {
-      display: grid; grid-template-columns: 64px 90px 96px 1fr; gap: 0.75rem;
-      padding: 0.35rem 0; border-bottom: 1px solid var(--border); line-height: 1.4;
-    }
-    .commit-row:last-child { border-bottom: none; }
-    .commit-sha { color: var(--accent-a); }
-    .commit-author { color: var(--accent-b); }
-    .commit-when { color: var(--muted); }
-    .commit-msg.status-commit { color: var(--warn); }
   </style>
 </head>
 <body>
@@ -329,11 +309,6 @@
   </div>
 </div>
 
-<div id="activity">
-  <h2>Recent activity · full history (git)</h2>
-  <div id="activity-log"><span class="load-error">Loading…</span></div>
-</div>
-
 <script>
   // Each person owns one status file in agent-status/. The dashboard only READS them.
   const PEOPLE = [
@@ -436,30 +411,8 @@
     document.getElementById('last-refresh').textContent = 'Updated ' + new Date().toLocaleTimeString();
   }
 
-  // Activity feed — reads docs/activity.json (generated from git by open-dashboard.command).
-  async function loadActivity() {
-    const el = document.getElementById('activity-log');
-    try {
-      const rows = await fetchJSON('activity.json');
-      if (!rows.length) { el.innerHTML = '<span class="load-error">No activity yet.</span>'; return; }
-      el.innerHTML = rows.map(r => {
-        const isStatus = r.subject.startsWith('[status]');
-        return `<div class="commit-row">`
-          + `<span class="commit-sha">${esc(r.sha)}</span>`
-          + `<span class="commit-author">${esc(r.author)}</span>`
-          + `<span class="commit-when">${esc(r.date)}</span>`
-          + `<span class="commit-msg ${isStatus ? 'status-commit' : ''}">${esc(r.subject)}</span>`
-          + `</div>`;
-      }).join('');
-    } catch {
-      el.innerHTML = '<span class="load-error">Run <code>open-dashboard.command</code> (or <code>python3 scripts/gen_activity.py</code>) to load activity.</span>';
-    }
-  }
-
   loadAll();
-  loadActivity();
   setInterval(loadAll, REFRESH_INTERVAL);
-  setInterval(loadActivity, REFRESH_INTERVAL);
 </script>
 </body>
 </html>
