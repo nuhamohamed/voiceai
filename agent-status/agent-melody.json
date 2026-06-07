@@ -1,10 +1,10 @@
 {
   "agent": "Melody",
-  "status": "review",
-  "currentTask": "PR #5 open: persona Melody → Nuha + 6 real Linear-pulled records",
+  "status": "idle",
+  "currentTask": "",
   "files": [],
   "blockers": [],
   "waitingOn": null,
-  "lastUpdated": "2026-06-07T01:15:00Z",
-  "notes": "PR #3 merged. PR #5 follow-up: persona rename to Nuha, corpus enriched to 17 records (11 hand-authored + 6 from Linear API). Foundation follow-up needed: Nuha/Tony to update personas.PERSONAS['person_a'].name from 'Person A' to 'Nuha'."
+  "lastUpdated": "2026-06-07T01:30:00Z",
+  "notes": "Lane complete. data/person_a_corpus.jsonl finalized (17 records, persona=Nuha). PRs #3 + #5 (corpus) and #6 (personas.py name) ready/merging. Linear pull script in place. Handing off to Nuha for Moss indexing + retrieval."
 }
