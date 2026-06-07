@@ -9,10 +9,10 @@ import {
   type AgentControlBarControls,
 } from '@/components/agents-ui/agent-control-bar';
 import { Shimmer } from '@/components/ai-elements/shimmer';
-import { MossResultsPanel } from '@/components/app/moss-results-panel';
+import { LiveContextDock } from '@/components/app/moss-results-panel';
 import { useMossContextEvents } from '@/hooks/useMossContextEvents';
 import { cn } from '@/lib/shadcn/utils';
-import { TileLayout } from './tile-view';
+import { ParticipantGrid } from './participant-grid';
 
 const MotionMessage = motion.create(Shimmer);
 
@@ -164,15 +164,20 @@ export function AgentSessionView_01({
   supportsScreenShare = true,
   isPreConnectBufferEnabled = true,
 
-  audioVisualizerType,
+  // Audio-visualizer config. The meeting-room layout no longer renders the single
+  // center visualizer; color/barCount are forwarded to the Nuha AI tile's bar
+  // visualizer. The remaining shape-specific props (grid/radial/wave) are part of
+  // the stable public interface (passed by view-controller.tsx) but unused by this
+  // layout — pulled out of `...props` so they don't leak onto the <section> element.
   audioVisualizerColor,
-  audioVisualizerColorShift,
   audioVisualizerBarCount,
-  audioVisualizerGridRowCount,
-  audioVisualizerGridColumnCount,
-  audioVisualizerRadialBarCount,
-  audioVisualizerRadialRadius,
-  audioVisualizerWaveLineWidth,
+  audioVisualizerType: _audioVisualizerType,
+  audioVisualizerColorShift: _audioVisualizerColorShift,
+  audioVisualizerGridRowCount: _audioVisualizerGridRowCount,
+  audioVisualizerGridColumnCount: _audioVisualizerGridColumnCount,
+  audioVisualizerRadialBarCount: _audioVisualizerRadialBarCount,
+  audioVisualizerRadialRadius: _audioVisualizerRadialRadius,
+  audioVisualizerWaveLineWidth: _audioVisualizerWaveLineWidth,
   ref,
   className,
   ...props
@@ -208,43 +213,53 @@ export function AgentSessionView_01({
       className={cn('bg-background relative z-10 h-full w-full overflow-hidden', className)}
       {...props}
     >
-      <Fade top className="absolute inset-x-4 top-0 z-10 h-40" />
-      {/* transcript */}
+      {/* Meeting-room stage: participant grid on the left, docked "Live context" panel
+          on the right (>=1024px); the panel stacks below the grid on narrow screens.
+          Sits above the bottom control bar. */}
+      <div className="absolute inset-x-0 top-6 bottom-32 z-40 overflow-y-auto px-4 md:top-12 md:bottom-40 md:px-8">
+        <div className="mx-auto grid h-full max-w-6xl grid-cols-1 gap-4 lg:grid-cols-[1fr_22rem]">
+          {/* Left: grid, or transcript when chat is open */}
+          <div className="relative flex min-h-0 min-w-0 flex-col">
+            <AnimatePresence mode="wait">
+              {chatOpen ? (
+                <motion.div
+                  key="transcript"
+                  {...CHAT_MOTION_PROPS}
+                  className="flex h-full w-full flex-col gap-4"
+                >
+                  <AgentChatTranscript
+                    agentState={agentState}
+                    messages={messages}
+                    className="mx-auto w-full max-w-2xl [&_.is-user>div]:rounded-[22px] [&>div>div]:px-2 md:[&>div>div]:px-4"
+                  />
+                </motion.div>
+              ) : (
+                <motion.div
+                  key="grid"
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                  transition={{ duration: 0.25, ease: 'easeOut' }}
+                  className="h-full min-h-0"
+                >
+                  <ParticipantGrid
+                    agentVisualizer={{
+                      color: audioVisualizerColor,
+                      barCount: audioVisualizerBarCount,
+                    }}
+                  />
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </div>
 
-      <div className="absolute top-0 bottom-[135px] flex w-full flex-col md:bottom-[170px]">
-        <AnimatePresence>
-          {chatOpen && (
-            <motion.div
-              {...CHAT_MOTION_PROPS}
-              className="flex h-full w-full flex-col gap-4 space-y-3 transition-opacity duration-300 ease-out"
-            >
-              <AgentChatTranscript
-                agentState={agentState}
-                messages={messages}
-                className="mx-auto w-full max-w-2xl [&_.is-user>div]:rounded-[22px] [&>div>div]:px-4 [&>div>div]:pt-40 md:[&>div>div]:px-6"
-              />
-            </motion.div>
-          )}
-        </AnimatePresence>
+          {/* Right: Live context dock (Moss). Stacks below the grid under lg. */}
+          <div className="min-h-[12rem] lg:min-h-0">
+            <LiveContextDock events={mossEvents} className="h-full" />
+          </div>
+        </div>
       </div>
-      {/* Live Knowledge Matches panel (Moss retrieval results) — renders beside the
-          visualizer/transcript, inside the RoomContext provider. Hidden until matches arrive. */}
-      <div className="pointer-events-auto absolute top-0 right-0 bottom-[170px] z-[60] hidden w-full max-w-sm overflow-y-auto overscroll-contain px-4 pt-40 pb-4 md:block">
-        <MossResultsPanel events={mossEvents} />
-      </div>
-      {/* Tile layout */}
-      <TileLayout
-        chatOpen={chatOpen}
-        audioVisualizerType={audioVisualizerType}
-        audioVisualizerColor={audioVisualizerColor}
-        audioVisualizerColorShift={audioVisualizerColorShift}
-        audioVisualizerBarCount={audioVisualizerBarCount}
-        audioVisualizerRadialBarCount={audioVisualizerRadialBarCount}
-        audioVisualizerRadialRadius={audioVisualizerRadialRadius}
-        audioVisualizerGridRowCount={audioVisualizerGridRowCount}
-        audioVisualizerGridColumnCount={audioVisualizerGridColumnCount}
-        audioVisualizerWaveLineWidth={audioVisualizerWaveLineWidth}
-      />
+
       {/* Bottom */}
       <motion.div
         {...BOTTOM_VIEW_MOTION_PROPS}

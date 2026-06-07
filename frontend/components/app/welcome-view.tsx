@@ -30,36 +30,29 @@ export const WelcomeView = ({
 }: React.ComponentProps<'div'> & WelcomeViewProps) => {
   return (
     <div ref={ref}>
-      <section className="bg-background flex flex-col items-center justify-center text-center">
+      <section className="bg-background flex flex-col items-center justify-center px-6 text-center">
         <WelcomeImage />
 
-        <p className="text-foreground max-w-prose pt-1 leading-6 font-medium">
-          Chat live with your voice AI agent
+        <span className="text-muted-foreground mb-3 inline-flex items-center gap-2 rounded-full border border-[#2563EB]/30 bg-[#2563EB]/10 px-3 py-1 font-mono text-[11px] font-bold tracking-wider text-[#2563EB] uppercase">
+          <span aria-hidden className="size-1.5 rounded-full bg-[#2563EB]" />
+          Standup
+        </span>
+
+        <h1 className="text-foreground max-w-prose text-2xl leading-tight font-semibold text-balance md:text-3xl">
+          Hippo is in the standup.
+        </h1>
+        <p className="text-muted-foreground mt-2 max-w-prose leading-6 font-medium">
+          Your AI clone is ready to give your update and answer follow-ups. Join when ready.
         </p>
 
         <Button
           size="lg"
           onClick={onStartCall}
-          className="mt-6 w-64 rounded-full font-mono text-xs font-bold tracking-wider uppercase"
+          className="mt-6 min-h-11 w-64 rounded-full bg-[#2563EB] font-mono text-xs font-bold tracking-wider text-white uppercase hover:bg-[#1d4ed8] focus-visible:ring-2 focus-visible:ring-[#2563EB] focus-visible:ring-offset-2"
         >
           {startButtonText}
         </Button>
       </section>
-
-      <div className="fixed bottom-5 left-0 flex w-full items-center justify-center">
-        <p className="text-muted-foreground max-w-prose pt-1 text-xs leading-5 font-normal text-pretty md:text-sm">
-          Need help getting set up? Check out the{' '}
-          <a
-            target="_blank"
-            rel="noopener noreferrer"
-            href="https://docs.livekit.io/agents/start/voice-ai/"
-            className="underline"
-          >
-            Voice AI quickstart
-          </a>
-          .
-        </p>
-      </div>
     </div>
   );
 };

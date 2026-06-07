@@ -33,10 +33,10 @@ export interface AppConfig {
 }
 
 export const APP_CONFIG_DEFAULTS: AppConfig = {
-  companyName: 'Standup Proxy',
-  pageTitle: 'Person A — Standup Clone',
+  companyName: 'Hippo',
+  pageTitle: 'Hippo — your AI clone in the standup',
   pageDescription:
-    "Person A's clone joins standup in their voice, gives the update, and answers follow-ups grounded in their real work context retrieved from Moss",
+    'Hippo joins the standup on your behalf — it gives your update in your voice and answers follow-ups grounded in your real work context retrieved from Moss',
 
   supportsChatInput: true,
   supportsVideoInput: true,
@@ -47,7 +47,7 @@ export const APP_CONFIG_DEFAULTS: AppConfig = {
   accent: '#002cf2',
   logoDark: '/lk-logo-dark.svg',
   accentDark: '#1fd5f9',
-  startButtonText: 'Start call',
+  startButtonText: 'Join standup',
 
   // optional: audio visualization configuration
   // audioVisualizerType: 'bar',
