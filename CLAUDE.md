@@ -15,11 +15,11 @@ When a teammate can't attend standup, **their clone joins in their cloned voice*
 
 Each person owns one lane and connects through a fixed interface. Full briefs are in `prds/` (paste-ready kickoffs in `prds/handoffs/`).
 
-| Owner | Agent | Lane | Delivers (the interface) | PRD |
-|-------|-------|------|--------------------------|-----|
-| **Melody** | A | Person A's content | `data/person_a_corpus.jsonl` → Nuha | `prds/01-LINEAR-CONTENT.md` |
-| **Nuha** | C | Moss retrieval + Voice | `retrieve(query_text, persona_id)` → Tony; cloned voice + STT config → Tony | `prds/02-MOSS-RETRIEVAL.md`, `prds/03-VOICE.md` |
-| **Tony** | B | LiveKit agent + room + Slack summary | assembles everything — the demo runs here | `prds/00-FOUNDATION.md`, `prds/04-LIVE-AGENT.md` |
+| Owner | Lane | Delivers (the interface) | PRD |
+|-------|------|--------------------------|-----|
+| **Melody** | Person A's content | `data/person_a_corpus.jsonl` → Nuha | `prds/01-LINEAR-CONTENT.md` |
+| **Nuha** | Moss retrieval + Voice | `retrieve(query_text, persona_id)` → Tony; cloned voice + STT config → Tony | `prds/02-MOSS-RETRIEVAL.md`, `prds/03-VOICE.md` |
+| **Tony** | LiveKit agent + room + Slack summary | assembles everything — the demo runs here | `prds/00-FOUNDATION.md`, `prds/04-LIVE-AGENT.md` |
 
 **The three fixed interfaces (change only by team agreement):**
 
@@ -31,15 +31,15 @@ Tony ships Foundation first (repo + stubs + a sample corpus), so everyone builds
 
 ## Coordination — check the dashboard, update your status (every session)
 
-**Dashboard:** https://nuhamohamed.github.io/voiceai/ — shows each agent's task, files, blockers, and flags file conflicts.
+**Dashboard:** open `docs/index.html` — serve from the repo root (`python3 -m http.server`), then open `/docs/`. It reads the local `agent-status/*.json`, auto-refreshes, and flags file conflicts. (No GitHub fetch — `git pull` to see teammates' latest.)
 
 **Before you start, and every ~30 min:**
 
 1. `git pull origin main`.
 2. **Check the dashboard** (or read the other two `agent-status/agent-*.json`). **Do not touch a file another agent has claimed** in their `files` list — coordinate first.
-3. **Claim your work** in your own status file — Melody → `agent-status/agent-a.json`, Tony → `agent-b.json`, Nuha → `agent-c.json`:
+3. **Claim your work** in your own status file — Melody → `agent-status/agent-melody.json`, Nuha → `agent-nuha.json`, Tony → `agent-tony.json`:
    ```json
-   { "agent": "A", "status": "working", "currentTask": "short description",
+   { "agent": "Melody", "status": "working", "currentTask": "short description",
      "files": ["paths you'll touch"], "blockers": [], "waitingOn": null,
      "lastUpdated": "ISO timestamp", "notes": "" }
    ```

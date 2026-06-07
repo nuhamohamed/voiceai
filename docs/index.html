@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Agent Coordination Dashboard</title>
+  <title>Standup Proxy — Build Status</title>
   <style>
     :root {
       --bg: #0f1117;
@@ -33,7 +33,7 @@
       display: flex;
       align-items: center;
       justify-content: space-between;
-      margin-bottom: 2rem;
+      margin-bottom: 1rem;
       padding-bottom: 1rem;
       border-bottom: 1px solid var(--border);
     }
@@ -63,37 +63,12 @@
     }
     #refresh-btn:hover { border-color: var(--accent-a); }
 
-    /* Config banner */
-    #config-banner {
-      background: var(--surface);
-      border: 1px solid var(--warn);
-      border-radius: 10px;
-      padding: 1rem 1.2rem;
+    #serve-note {
+      font-size: 0.78rem;
+      color: var(--muted);
       margin-bottom: 1.5rem;
-      font-size: 0.85rem;
-      display: none;
     }
-    #config-banner.visible { display: block; }
-    #config-banner label { color: var(--warn); font-weight: 600; display: block; margin-bottom: 0.5rem; }
-    #repo-input {
-      background: var(--bg);
-      border: 1px solid var(--border);
-      color: var(--text);
-      padding: 0.4rem 0.7rem;
-      border-radius: 6px;
-      font-size: 0.85rem;
-      width: 360px;
-      margin-right: 0.5rem;
-    }
-    #save-repo-btn {
-      background: var(--accent-a);
-      border: none;
-      color: #fff;
-      padding: 0.4rem 0.9rem;
-      border-radius: 6px;
-      cursor: pointer;
-      font-size: 0.85rem;
-    }
+    #serve-note code { color: var(--text); background: var(--surface); padding: 0.1rem 0.35rem; border-radius: 4px; }
 
     /* Conflict alert */
     #conflict-alert {
@@ -108,7 +83,7 @@
     #conflict-alert.visible { display: block; }
     #conflict-alert strong { color: var(--danger); }
 
-    /* Agent cards */
+    /* Person cards */
     .agents-grid {
       display: grid;
       grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
@@ -137,7 +112,7 @@
 
     .card-header {
       display: flex;
-      align-items: center;
+      align-items: flex-start;
       justify-content: space-between;
       margin-bottom: 1rem;
     }
@@ -148,6 +123,12 @@
       gap: 0.6rem;
       font-weight: 600;
       font-size: 1rem;
+    }
+    .agent-lane {
+      font-size: 0.72rem;
+      color: var(--muted);
+      margin-top: 0.2rem;
+      margin-left: 1.2rem;
     }
 
     .agent-dot {
@@ -165,6 +146,7 @@
       border-radius: 20px;
       text-transform: uppercase;
       letter-spacing: 0.05em;
+      white-space: nowrap;
     }
     .status-working  { background: #1a2e1a; color: var(--ok); border: 1px solid var(--ok); }
     .status-blocked  { background: #2d1515; color: var(--danger); border: 1px solid var(--danger); }
@@ -221,67 +203,22 @@
       margin-top: 0.5rem;
     }
 
-    /* Git log panel */
-    #git-section h2 {
-      font-size: 1rem;
-      font-weight: 600;
-      margin-bottom: 1rem;
-      color: var(--muted);
-      text-transform: uppercase;
-      letter-spacing: 0.06em;
-      font-size: 0.75rem;
-    }
-
-    #git-log {
-      background: var(--surface);
-      border: 1px solid var(--border);
-      border-radius: 10px;
-      padding: 1rem;
-      font-family: monospace;
-      font-size: 0.8rem;
-      max-height: 280px;
-      overflow-y: auto;
-    }
-
-    .commit-row {
-      display: grid;
-      grid-template-columns: 70px 100px 1fr;
-      gap: 0.75rem;
-      padding: 0.35rem 0;
-      border-bottom: 1px solid var(--border);
-      line-height: 1.4;
-    }
-    .commit-row:last-child { border-bottom: none; }
-    .commit-sha { color: var(--accent-a); }
-    .commit-author { color: var(--accent-b); }
-    .commit-msg { color: var(--text); }
-    .commit-msg.status-commit { color: var(--warn); }
-
-    /* Error state */
-    .load-error {
-      color: var(--muted);
-      font-style: italic;
-      font-size: 0.82rem;
-    }
+    .load-error { color: var(--muted); font-style: italic; font-size: 0.82rem; }
   </style>
 </head>
 <body>
 
 <header>
-  <h1>Agent Coordination Dashboard</h1>
+  <h1>Standup Proxy — Build Status</h1>
   <div id="meta">
     <span id="last-refresh">–</span>
     <button id="refresh-btn" onclick="loadAll()">↻ Refresh</button>
   </div>
 </header>
 
-<div id="config-banner" class="visible">
-  <label>⚙ Configure your GitHub repo to load live data</label>
-  <span style="color:var(--muted); font-size:0.8rem; display:block; margin-bottom:0.5rem;">
-    Format: <code>owner/repo</code> (e.g. <code>acmecorp/my-project</code>)
-  </span>
-  <input id="repo-input" type="text" placeholder="owner/repo" />
-  <button id="save-repo-btn" onclick="saveRepo()">Save</button>
+<div id="serve-note">
+  Reads local <code>agent-status/*.json</code> (no GitHub fetch). Serve from the repo root —
+  <code>python3 -m http.server</code> — then open <code>/docs/</code>. Run <code>git pull</code> to see teammates' latest.
 </div>
 
 <div id="conflict-alert">
@@ -290,103 +227,96 @@
 </div>
 
 <div class="agents-grid">
-  <div class="agent-card agent-a" id="card-a">
+  <div class="agent-card agent-a" id="card-melody">
     <div class="card-header">
-      <div class="agent-label"><span class="agent-dot"></span> Agent A</div>
-      <span class="status-badge status-idle" id="badge-a">idle</span>
+      <div>
+        <div class="agent-label"><span class="agent-dot"></span> Melody</div>
+        <div class="agent-lane">Linear content → corpus file</div>
+      </div>
+      <span class="status-badge status-idle" id="badge-melody">idle</span>
     </div>
     <div class="field">
       <div class="field-label">Current Task</div>
-      <div class="field-value empty" id="task-a">—</div>
+      <div class="field-value empty" id="task-melody">—</div>
     </div>
     <div class="field">
       <div class="field-label">Files Being Touched</div>
-      <div class="file-list" id="files-a"><span class="field-value empty">none</span></div>
+      <div class="file-list" id="files-melody"><span class="field-value empty">none</span></div>
     </div>
     <div class="field">
       <div class="field-label">Blockers</div>
-      <ul class="blocker-list" id="blockers-a"><li style="color:var(--ok)">none</li></ul>
+      <ul class="blocker-list" id="blockers-melody"><li style="color:var(--ok)">none</li></ul>
     </div>
     <div class="field">
       <div class="field-label">Notes</div>
-      <div class="field-value empty" id="notes-a">—</div>
+      <div class="field-value empty" id="notes-melody">—</div>
     </div>
-    <div class="timestamp" id="ts-a">Last updated: –</div>
+    <div class="timestamp" id="ts-melody">Last updated: –</div>
   </div>
 
-  <div class="agent-card agent-b" id="card-b">
+  <div class="agent-card agent-b" id="card-nuha">
     <div class="card-header">
-      <div class="agent-label"><span class="agent-dot"></span> Agent B</div>
-      <span class="status-badge status-idle" id="badge-b">idle</span>
+      <div>
+        <div class="agent-label"><span class="agent-dot"></span> Nuha</div>
+        <div class="agent-lane">Moss retrieval + Voice</div>
+      </div>
+      <span class="status-badge status-idle" id="badge-nuha">idle</span>
     </div>
     <div class="field">
       <div class="field-label">Current Task</div>
-      <div class="field-value empty" id="task-b">—</div>
+      <div class="field-value empty" id="task-nuha">—</div>
     </div>
     <div class="field">
       <div class="field-label">Files Being Touched</div>
-      <div class="file-list" id="files-b"><span class="field-value empty">none</span></div>
+      <div class="file-list" id="files-nuha"><span class="field-value empty">none</span></div>
     </div>
     <div class="field">
       <div class="field-label">Blockers</div>
-      <ul class="blocker-list" id="blockers-b"><li style="color:var(--ok)">none</li></ul>
+      <ul class="blocker-list" id="blockers-nuha"><li style="color:var(--ok)">none</li></ul>
     </div>
     <div class="field">
       <div class="field-label">Notes</div>
-      <div class="field-value empty" id="notes-b">—</div>
+      <div class="field-value empty" id="notes-nuha">—</div>
     </div>
-    <div class="timestamp" id="ts-b">Last updated: –</div>
+    <div class="timestamp" id="ts-nuha">Last updated: –</div>
   </div>
 
-  <div class="agent-card agent-c" id="card-c">
+  <div class="agent-card agent-c" id="card-tony">
     <div class="card-header">
-      <div class="agent-label"><span class="agent-dot"></span> Agent C</div>
-      <span class="status-badge status-idle" id="badge-c">idle</span>
+      <div>
+        <div class="agent-label"><span class="agent-dot"></span> Tony</div>
+        <div class="agent-lane">LiveKit agent + room + Slack</div>
+      </div>
+      <span class="status-badge status-idle" id="badge-tony">idle</span>
     </div>
     <div class="field">
       <div class="field-label">Current Task</div>
-      <div class="field-value empty" id="task-c">—</div>
+      <div class="field-value empty" id="task-tony">—</div>
     </div>
     <div class="field">
       <div class="field-label">Files Being Touched</div>
-      <div class="file-list" id="files-c"><span class="field-value empty">none</span></div>
+      <div class="file-list" id="files-tony"><span class="field-value empty">none</span></div>
     </div>
     <div class="field">
       <div class="field-label">Blockers</div>
-      <ul class="blocker-list" id="blockers-c"><li style="color:var(--ok)">none</li></ul>
+      <ul class="blocker-list" id="blockers-tony"><li style="color:var(--ok)">none</li></ul>
     </div>
     <div class="field">
       <div class="field-label">Notes</div>
-      <div class="field-value empty" id="notes-c">—</div>
+      <div class="field-value empty" id="notes-tony">—</div>
     </div>
-    <div class="timestamp" id="ts-c">Last updated: –</div>
+    <div class="timestamp" id="ts-tony">Last updated: –</div>
   </div>
-</div>
-
-<div id="git-section">
-  <h2>Recent Commits</h2>
-  <div id="git-log"><span class="load-error">Configure repo above to load commit history.</span></div>
 </div>
 
 <script>
-  const AGENTS = ['a', 'b', 'c'];
+  // Each person owns one status file in agent-status/. The dashboard only READS them.
+  const PEOPLE = [
+    { id: 'melody', name: 'Melody' },
+    { id: 'nuha',   name: 'Nuha' },
+    { id: 'tony',   name: 'Tony' },
+  ];
   const REFRESH_INTERVAL = 60000; // 60 seconds
-
-  function getRepo() {
-    return localStorage.getItem('coord_repo') || '';
-  }
-
-  function saveRepo() {
-    const val = document.getElementById('repo-input').value.trim();
-    if (!val || !val.includes('/')) { alert('Enter format: owner/repo'); return; }
-    localStorage.setItem('coord_repo', val);
-    document.getElementById('config-banner').classList.remove('visible');
-    loadAll();
-  }
-
-  function rawUrl(repo, path) {
-    return `https://raw.githubusercontent.com/${repo}/main/${path}`;
-  }
 
   async function fetchJSON(url) {
     const r = await fetch(url + '?t=' + Date.now());
@@ -401,8 +331,6 @@
   }
 
   // Escape untrusted data before interpolating into innerHTML (prevents XSS).
-  // Status JSON and GitHub API data (commit messages, author names, file paths)
-  // are attacker-influenceable on a public repo, so never inject them raw.
   function esc(s) {
     return String(s).replace(/[&<>"']/g, c =>
       ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
@@ -429,27 +357,24 @@
     el.innerHTML = blockers.map(b => `<li>${esc(b)}</li>`).join('');
   }
 
+  // Flag any file claimed by more than one person.
   function findConflicts(data) {
-    const fileOwners = {}; // file -> [agent, ...]
-    AGENTS.forEach(id => {
-      const d = data[id];
+    const fileOwners = {};
+    PEOPLE.forEach(p => {
+      const d = data[p.id];
       if (!d || !d.files) return;
       d.files.forEach(f => {
         if (!fileOwners[f]) fileOwners[f] = [];
-        fileOwners[f].push('Agent ' + id.toUpperCase());
+        fileOwners[f].push(p.name);
       });
     });
-    const conflicts = Object.entries(fileOwners).filter(([, owners]) => owners.length > 1);
-    return conflicts; // [[file, [ownerA, ownerB]], ...]
+    return Object.entries(fileOwners).filter(([, owners]) => owners.length > 1);
   }
 
   function updateConflictAlert(conflicts) {
     const el = document.getElementById('conflict-alert');
     const detail = document.getElementById('conflict-detail');
-    if (conflicts.length === 0) {
-      el.classList.remove('visible');
-      return;
-    }
+    if (conflicts.length === 0) { el.classList.remove('visible'); return; }
     el.classList.add('visible');
     detail.innerHTML = conflicts.map(([file, owners]) =>
       `<div style="margin-top:0.25rem"><code>${esc(file)}</code> is claimed by <strong>${esc(owners.join(' and '))}</strong> — coordinate before editing.</div>`
@@ -457,21 +382,13 @@
   }
 
   async function loadAll() {
-    const repo = getRepo();
     document.getElementById('last-refresh').textContent = 'Refreshing…';
-
-    if (!repo) {
-      document.getElementById('config-banner').classList.add('visible');
-      document.getElementById('last-refresh').textContent = 'Not configured';
-      return;
-    }
-
     const results = {};
-    await Promise.all(AGENTS.map(async id => {
+    await Promise.all(PEOPLE.map(async ({ id }) => {
       try {
-        const d = await fetchJSON(rawUrl(repo, `agent-status/agent-${id}.json`));
+        // Local read — status files live in agent-status/ at the repo root.
+        const d = await fetchJSON('../agent-status/agent-' + id + '.json');
         results[id] = d;
-
         document.getElementById('task-' + id).textContent = d.currentTask || '—';
         document.getElementById('task-' + id).className = 'field-value' + (d.currentTask ? '' : ' empty');
         document.getElementById('notes-' + id).textContent = d.notes || '—';
@@ -481,57 +398,20 @@
         renderBlockers(id, d.blockers);
       } catch (e) {
         results[id] = null;
-        document.getElementById('task-' + id).textContent = 'Could not load status';
+        document.getElementById('task-' + id).textContent = 'Could not load (serve from repo root)';
         document.getElementById('task-' + id).className = 'field-value empty';
       }
     }));
 
-    // conflict detection — run after all data loaded
     const conflicts = findConflicts(results);
     const conflictFiles = new Set(conflicts.map(([f]) => f));
     updateConflictAlert(conflicts);
-    AGENTS.forEach(id => {
-      const files = results[id]?.files || [];
-      renderFiles(id, files, conflictFiles);
-    });
-
-    // load commit history via GitHub API
-    await loadCommits(repo);
+    PEOPLE.forEach(({ id }) => renderFiles(id, results[id]?.files || [], conflictFiles));
 
     document.getElementById('last-refresh').textContent = 'Updated ' + new Date().toLocaleTimeString();
   }
 
-  async function loadCommits(repo) {
-    const gitLog = document.getElementById('git-log');
-    try {
-      const r = await fetch(`https://api.github.com/repos/${repo}/commits?per_page=15`);
-      if (!r.ok) throw new Error();
-      const commits = await r.json();
-      gitLog.innerHTML = commits.map(c => {
-        const sha = c.sha.slice(0, 7);
-        const author = (c.commit.author.name || '').slice(0, 12);
-        const msg = c.commit.message.split('\n')[0];
-        const isStatus = msg.startsWith('[status]');
-        return `<div class="commit-row">
-          <span class="commit-sha">${esc(sha)}</span>
-          <span class="commit-author">${esc(author)}</span>
-          <span class="commit-msg ${isStatus ? 'status-commit' : ''}">${esc(msg)}</span>
-        </div>`;
-      }).join('');
-    } catch {
-      gitLog.innerHTML = '<span class="load-error">Could not load commits (may need GitHub auth or check repo name).</span>';
-    }
-  }
-
-  // Init
-  const saved = getRepo();
-  if (saved) {
-    document.getElementById('repo-input').value = saved;
-    document.getElementById('config-banner').classList.remove('visible');
-    loadAll();
-  }
-
-  // Auto-refresh every 60s
+  loadAll();
   setInterval(loadAll, REFRESH_INTERVAL);
 </script>
 </body>
