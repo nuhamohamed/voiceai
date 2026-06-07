@@ -7,6 +7,7 @@ AudioFrame and break playback. So derive samples_per_channel from the bytes
 actually read. `readframes` is bounded by the real file data, so it returns the
 true ~30s of audio.
 """
+
 from __future__ import annotations
 
 import wave
@@ -19,8 +20,10 @@ async def wav_frames(path: str) -> AsyncIterator[rtc.AudioFrame]:
     with wave.open(path, "rb") as wav:
         sample_width = wav.getsampwidth()
         num_channels = wav.getnchannels()
-        frames = wav.readframes(wav.getnframes())                       # real data (bounded by file)
-        samples_per_channel = len(frames) // (sample_width * num_channels)  # robust to bogus header
+        frames = wav.readframes(wav.getnframes())  # real data (bounded by file)
+        samples_per_channel = len(frames) // (
+            sample_width * num_channels
+        )  # robust to bogus header
         yield rtc.AudioFrame(
             data=frames,
             sample_rate=wav.getframerate(),

@@ -116,6 +116,6 @@ async def test_live_moss_retrieval_surfaces_blocker_theme():
 
     assert len(chunks) >= 1, "expected at least one retrieved chunk"
     combined = " ".join((c.text or "") for c in chunks).lower()
-    assert (
-        "eng-419" in combined or "refresh-token rotation" in combined
-    ), f"blocker theme not retrieved; got refs={[c.ref for c in chunks]}"
+    assert "eng-419" in combined or "refresh-token rotation" in combined, (
+        f"blocker theme not retrieved; got refs={[c.ref for c in chunks]}"
+    )
