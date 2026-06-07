@@ -7,9 +7,12 @@ from livekit.agents import (
     Agent,
     AgentServer,
     AgentSession,
+    ChatContext,
+    ChatMessage,
     JobContext,
     JobProcess,
     RunContext,
+    StopResponse,
     cli,
     function_tool,
     inference,
@@ -71,6 +74,61 @@ class Assistant(Agent):
         except Exception:
             logger.exception("Failed to publish moss_context data")
 
+    async def on_user_turn_completed(
+        self, turn_ctx: ChatContext, new_message: ChatMessage
+    ) -> None:
+        """Question-triggered cached clone-voice answers for the two demo questions.
+
+        The demo is QUESTION-TRIGGERED (not an unprompted monologue): the PM asks
+        Q1 (status) then Q2 (blocker). For each, we run the REAL retrieve() so the
+        on-screen Moss trace reflects exactly what Moss returns, then speak the
+        pre-rendered clone-voice WAV (the transcript text matches demo-script.md so
+        the on-screen transcript lines up), and raise StopResponse so the LLM does
+        not also answer. Any other question falls through to the normal LLM
+        search_knowledge path.
+        """
+        q = (new_message.text_content or "").lower()
+
+        # Blocker intent (Q2 — the moat). Check first: "what's blocking it" must
+        # not be swallowed by the status branch.
+        if any(k in q for k in ("block", "blocking", "blocker")):
+            chunks = await retrieve(new_message.text_content, self._persona_id)
+            await self._publish_moss_context(new_message.text_content, chunks)
+            wav = str(_REPO_ROOT / AUDIO_CACHE_DIR / "blocker.wav")
+            await self.session.say(
+                "Ivan's concern is that the current implementation issues "
+                "long-lived refresh tokens — if one leaks, the attacker has a long "
+                "window. He wants each refresh to rotate the token and revoke the "
+                "old one, with reuse detection that invalidates the whole token "
+                "family if a stale refresh gets replayed. It's a bigger lift than "
+                "I'd scoped, so I added it as ENG-419 and started Thursday. Should "
+                "be done Friday for Ivan's review.",
+                audio=wav_frames(wav),
+            )
+            raise StopResponse()
+
+        # Status intent (Q1 — opening). e.g. "what's the status of the auth
+        # migration?" / "where is the migration?" — status/update/where + the topic.
+        if any(k in q for k in ("status", "update", "where")) and any(
+            k in q for k in ("auth", "migration")
+        ):
+            chunks = await retrieve(new_message.text_content, self._persona_id)
+            await self._publish_moss_context(new_message.text_content, chunks)
+            wav = str(_REPO_ROOT / AUDIO_CACHE_DIR / "update.wav")
+            await self.session.say(
+                "The backend OAuth callback and token exchange shipped Tuesday — "
+                "PR #847 merged and deployed to staging Wednesday, sign-in works "
+                "there. Ivan reviewed the spec Wednesday and flagged that we need "
+                "sliding-window refresh-token rotation with reuse detection before "
+                "prod. I'm implementing that now under ENG-419 — should land Friday. "
+                "Jamie's doing PKCE on the frontend in parallel under ENG-418. "
+                "Earliest prod rollout: Tuesday next week.",
+                audio=wav_frames(wav),
+            )
+            raise StopResponse()
+
+        # Otherwise: fall through to the normal LLM + search_knowledge path.
+
     @function_tool()
     async def search_knowledge(self, context: RunContext, query: str) -> str:
         """Search this person's real work context (Linear / Slack / calendar) to ground your answer.
@@ -119,9 +177,11 @@ async def my_agent(ctx: JobContext):
         # See more at https://docs.livekit.io/agents/build/turns
         turn_detection=MultilingualModel(),
         vad=ctx.proc.userdata["vad"],
-        # allow the LLM to generate a response while waiting for the end of turn
-        # See more at https://docs.livekit.io/agents/build/audio/#preemptive-generation
-        preemptive_generation=True,
+        # Keep preemptive generation OFF: a speculatively-started LLM reply could
+        # leak generic-voice audio before our on_user_turn_completed cached-WAV +
+        # StopResponse fires for the two demo questions.
+        # See https://docs.livekit.io/agents/build/audio/#preemptive-generation
+        preemptive_generation=False,
     )
 
     # Start the session, which initializes the voice pipeline and warms up the models
@@ -140,16 +200,12 @@ async def my_agent(ctx: JobContext):
     # Join the room and connect to the user
     await ctx.connect()
 
-    # Deliver the standup update once connected. Triggered here (not in
-    # Agent.on_enter) per the documented LiveKit pattern so it runs against a
-    # connected room and on_enter stays deterministic for the test suite. We
-    # play the cached clone-voice WAV instead of a generated greeting so the
-    # opening update lands in the person's actual voice.
-    update_wav = str(_REPO_ROOT / AUDIO_CACHE_DIR / "update.wav")
-    update_text = (
-        "Here's my standup update."  # transcript shown on screen; audio is the clone voice
-    )
-    await session.say(update_text, audio=wav_frames(update_wav))
+    # Short spoken greeting once connected. The demo OPENS with the PM asking Q1,
+    # so the clone must NOT monologue update.wav unprompted — that line is now
+    # triggered by the status question in on_user_turn_completed. Triggered here
+    # (not in Agent.on_enter) per the documented LiveKit pattern so it runs
+    # against a connected room and on_enter stays deterministic for the test suite.
+    await session.say("Hi, I'm Nuha's standup clone — ask me anything about my work.")
 
 
 if __name__ == "__main__":
