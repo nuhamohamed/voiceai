@@ -1,19 +1,19 @@
-# Demo Script — Standup Proxy (Person A = Tony Nguyen)
+# Demo Script — Standup Proxy (Person A = Melody Chung)
 
 The 2-minute live demo. Two questions to the absent teammate's clone; the
 second one is where the moat lands.
 
 ## Setup (one paragraph for the judges)
 
-> "Tony can't make our standup today. Normally that means we lose 10 minutes
-> guessing where his work stands. Instead — his AI clone is here. It's joined
-> the call as a participant, it has his real context from Linear and Slack
-> indexed in Moss, and it'll answer questions in his cloned voice. Watch the
+> "Melody can't make our standup today. Normally that means we lose 10 minutes
+> guessing where her work stands. Instead — her AI clone is here. It's joined
+> the call as a participant, it has her real context from Linear and Slack
+> indexed in Moss, and it'll answer questions in her cloned voice. Watch the
 > screen — every chunk it retrieves shows up live."
 
 ## Cast
 
-- **Tony Nguyen** — absent teammate. Backend engineer. The clone speaks as him.
+- **Melody Chung** — absent teammate. Backend engineer. The clone speaks as her.
 - **Ivan Chubs** — Security. Flagged the blocker.
 - **Jamie** — Frontend engineer working on PKCE in parallel.
 - **PM (live in the room)** — asks the two demo questions.
@@ -21,14 +21,14 @@ second one is where the moat lands.
 ## Q1 — Status question (opening)
 
 **PM (spoken):**
-> "Tony — what's the status of the auth migration?"
+> "Melody — what's the status of the auth migration?"
 
 **Expected on-screen retrieval (🔎 Moss trace):**
-1. `lin-eng-412` — ENG-412 / MEL-5 Auth migration ticket body
-2. `lin-eng-412-c-tony-status` — Tony's Jun 5 status comment
-3. `slack-infra-tony-update` — Tony's #infra Jun 5 status post
+1. `lin-eng-412` — Auth migration umbrella ticket (MEL-5 in Linear)
+2. `lin-eng-412-c-tony-status` — Melody's Jun 5 status comment on MEL-5
+3. `slack-infra-tony-update` — Melody's #infra Jun 5 status post
 
-**Expected synthesized answer (spoken in Tony's cloned voice):**
+**Expected synthesized answer (spoken in Melody's cloned voice):**
 > "The backend OAuth callback and token exchange shipped Tuesday — PR #847
 > merged and deployed to staging Wednesday, sign-in works there. Ivan reviewed
 > the spec Wednesday and flagged that we need sliding-window refresh-token
@@ -42,11 +42,11 @@ second one is where the moat lands.
 > "What's actually blocking it?"
 
 **Expected on-screen retrieval (🔎 Moss trace):**
-1. `lin-eng-412-c-ivan-rotation` — Ivan's rotation proposal comment
-2. `lin-eng-419` — the refresh-token rotation ticket
+1. `lin-eng-412-c-ivan-rotation` — Ivan's rotation proposal comment on MEL-5
+2. `lin-eng-419` — the refresh-token rotation ticket (MEL-8 in Linear)
 3. `slack-security-ivan-rotation` — Ivan's #security Jun 3 message
 
-**Expected synthesized answer (spoken in Tony's cloned voice):**
+**Expected synthesized answer (spoken in Melody's cloned voice):**
 > "Ivan's concern is that the current implementation issues long-lived refresh
 > tokens — if one leaks, the attacker has a long window. He wants each refresh
 > to rotate the token and revoke the old one, with reuse detection that
@@ -56,11 +56,11 @@ second one is where the moat lands.
 
 ## Adjourn — Slack summary
 
-When the standup ends, Tony's clone posts to the Slack summary channel:
+When the standup ends, Melody's clone posts to the Slack summary channel:
 
-> **Tony's standup proxy summary** — auth migration: backend shipped to
+> **Melody's standup proxy summary** — auth migration: backend shipped to
 > staging Tuesday; blocked on refresh-token rotation (ENG-419) for prod;
-> targeting Tue Jun 9 rollout. Action: Tony to finish ENG-419 for Ivan's
+> targeting Tue Jun 9 rollout. Action: Melody to finish ENG-419 for Ivan's
 > review by Fri EOD. Frontend PKCE (ENG-418, Jamie) in parallel.
 
 ## Go/no-go fallback
@@ -80,7 +80,25 @@ If `retrieve()` doesn't surface the right chunks on Q2 in rehearsal:
 - **Visible retrieval = the moat shown, not just heard.** Judges see the
   chunks light up before the voice answers.
 - **Two questions, ~30s each.** Tight enough to demo cleanly, dense enough
-  to feel like a real teammate caught up on his work.
+  to feel like a real teammate caught up on her work.
+
+## Linear ↔ corpus mapping
+
+The 11 records in `data/person_a_corpus.jsonl` break down as:
+
+| Corpus record | Type | Linear |
+|---|---|---|
+| `lin-eng-412` (umbrella) | Ticket body | MEL-5 |
+| `lin-eng-415` | Ticket body | MEL-6 |
+| `lin-eng-418` | Ticket body | MEL-7 |
+| `lin-eng-419` | Ticket body | MEL-8 |
+| `lin-eng-423` | Ticket body | MEL-9 |
+| `lin-eng-455` | Ticket body | MEL-10 |
+| `lin-eng-412-c-tony-status` | Comment on MEL-5 | (in MEL-5) |
+| `lin-eng-412-c-ivan-rotation` | Comment on MEL-5 | (in MEL-5) |
+| `slack-security-ivan-rotation` | Slack message | — (hand-authored only) |
+| `slack-infra-tony-update` | Slack message | — (hand-authored only) |
+| `cal-auth-review-ivan-tony` | Calendar event | — (hand-authored only) |
 
 ## Corpus that grounds this
 
