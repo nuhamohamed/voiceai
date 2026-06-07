@@ -35,7 +35,7 @@ PERSONAS: dict[str, Persona] = {
         system_prompt=_GROUNDING.format(name="Nuha"),
         voice_id="qwen-tts-vc-nuha-voice-20260607144452804-6824",
         moss_index="person_a",
-        slack_user_id="",  # TODO: set to Nuha's Slack member ID (U...)
+        slack_user_id="U0B8VKMQ4TC",  # Nuha — @-mentioned in the standup summary
     ),
     "person_b": Persona(
         id="person_b",
