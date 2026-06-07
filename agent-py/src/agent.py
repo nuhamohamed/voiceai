@@ -28,8 +28,10 @@ for _p in (str(_REPO_ROOT), str(_SRC)):  # explicit inserts: robust across dev/s
 
 from brain.retrieval import retrieve  # noqa: E402  our seam (Nuha's Moss behind it)
 from personas import get_persona  # noqa: E402
+from voice.config import AUDIO_CACHE_DIR  # noqa: E402  Nuha's seam
 
 from grounding import build_moss_context_payload, format_chunks_for_llm  # noqa: E402
+from playback import wav_frames  # noqa: E402  flat import (src/ on sys.path[0])
 
 logger = logging.getLogger("agent")
 
@@ -138,16 +140,16 @@ async def my_agent(ctx: JobContext):
     # Join the room and connect to the user
     await ctx.connect()
 
-    # Greet the user once connected. Triggered here (not in Agent.on_enter) per
-    # the documented LiveKit pattern so the greeting runs against a connected
-    # room and on_enter stays deterministic for the test suite.
-    await session.generate_reply(
-        instructions=(
-            "Greet the user warmly in one sentence, introduce yourself as a "
-            "LiveKit docs helper, and invite them to ask a question about "
-            "building voice agents."
-        )
+    # Deliver the standup update once connected. Triggered here (not in
+    # Agent.on_enter) per the documented LiveKit pattern so it runs against a
+    # connected room and on_enter stays deterministic for the test suite. We
+    # play the cached clone-voice WAV instead of a generated greeting so the
+    # opening update lands in the person's actual voice.
+    update_wav = str(_REPO_ROOT / AUDIO_CACHE_DIR / "update.wav")
+    update_text = (
+        "Here's my standup update."  # transcript shown on screen; audio is the clone voice
     )
+    await session.say(update_text, audio=wav_frames(update_wav))
 
 
 if __name__ == "__main__":
