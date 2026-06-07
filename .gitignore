@@ -31,3 +31,14 @@ skills-lock.json
 voice_samples/
 audio/demo/*.mp3
 audio/demo/*.wav
+
+# moss-hacker-starter apps
+node_modules/
+agent-py/.venv/
+frontend/.next/
+frontend/out/
+agent-py/.ruff_cache/
+agent-py/.pytest_cache/
+**/__pycache__/
+.env.local
+.env.*.local
