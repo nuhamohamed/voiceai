@@ -1,13 +1,12 @@
 {
   "agent": "Nuha",
   "status": "working",
-  "currentTask": "Lane 2 (Voice): cache demo lines (need demo script)",
+  "currentTask": "Lane 1 (Moss retrieval): replace retrieve() stub with real MossClient.query",
   "files": [
-    "voice/cache_demo_lines.py",
-    "audio/demo/"
+    "brain/retrieval.py"
   ],
   "blockers": [],
   "waitingOn": null,
-  "lastUpdated": "2026-06-07T00:00:00Z",
-  "notes": "TONY — voice handoff shape: (1) voice_id filled in personas.py; (2) voice/config.py has STT_PLUGIN='deepgram' and AUDIO_CACHE_DIR='audio/demo' — import those two constants. Pre-rendered lines will land at audio/demo/{update,question,report_back}.mp3. No changes to Persona dataclass shape. Enrollment done: qwen-tts-vc-nuha-voice-20260607144452804-6824"
+  "lastUpdated": "2026-06-07T01:00:00Z",
+  "notes": "Lane 2 (Voice) DONE: voice_id enrolled, voice/config.py ready for Tony, audio/demo/{update,blocker,slack_summary}.mp3 cached in cloned voice. Starting Lane 1: replace brain/retrieval.py stub with real Moss retrieval."
 }
