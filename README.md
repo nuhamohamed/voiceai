@@ -14,6 +14,44 @@ Built at the Moss Conversational AI Hackathon. **Python + LiveKit.**
 
 Full briefs are in **`prds/`** (start with `prds/README.md`). Your paste-into-your-agent kickoff is in **`prds/handoffs/`**.
 
+## How it works
+
+```mermaid
+flowchart TB
+    src["Linear / Slack / calendar<br/>Person A's real work"]
+    corpus["data/person_a_corpus.jsonl<br/>id · source · ref · text"]
+    moss[("Moss index<br/>per persona")]
+
+    src -->|Melody authors| corpus
+    corpus -->|Nuha loads| moss
+
+    subgraph room["Live standup · LiveKit room"]
+        pm["PM asks a follow-up (spoken)"]
+        stt["STT: speech → text"]
+        ret["retrieve(query, persona) → chunks<br/>the shared contract"]
+        llm["LLM: writes a grounded answer"]
+        tts["TTS: cloned voice (Qwen / LiveKit)"]
+        say["Clone speaks"]
+        trace["🔎 Moss → ref shown on screen"]
+        pm --> stt --> ret
+        ret -->|inject context| llm --> tts --> say
+        ret --> trace
+    end
+
+    moss -.->|queried live| ret
+    say --> adj["On adjourn"]
+    adj --> slack["Slack summary + action items"]
+
+    classDef melody fill:#6366f1,stroke:#4338ca,color:#fff
+    classDef nuha fill:#10b981,stroke:#059669,color:#fff
+    classDef tony fill:#f59e0b,stroke:#d97706,color:#111
+    class corpus melody
+    class moss,ret,stt,tts nuha
+    class pm,llm,say,trace,adj,slack tony
+```
+
+**Owners:** 🟣 Melody (content) · 🟢 Nuha (Moss retrieval + voice) · 🟠 Tony (LiveKit agent + room + Slack). The moat is `retrieve()` pulling the **right real chunk** live, shown on screen *and* spoken.
+
 ## Get started
 
 The brain runs on the standard library — no keys needed to test the text path:
