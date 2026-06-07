@@ -1,0 +1,25 @@
+# Secrets — never commit (per project constraint: no API keys in repo)
+.env
+.env.*
+*.key
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+env/
+*.egg-info/
+.pytest_cache/
+
+# OS
+.DS_Store
+
+# Local-only research notes and vendored tooling (not for shared repo)
+research/
+tools/
+.agents/
+skills-lock.json
+
+# Audio caches (pre-cached demo lines may be large)
+*.wav.tmp
