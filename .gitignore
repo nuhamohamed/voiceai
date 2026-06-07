@@ -28,3 +28,6 @@ skills-lock.json
 
 # Audio caches (pre-cached demo lines may be large)
 *.wav.tmp
+voice_samples/
+audio/demo/*.mp3
+audio/demo/*.wav

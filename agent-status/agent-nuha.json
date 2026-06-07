@@ -1,10 +1,17 @@
 {
   "agent": "Nuha",
-  "status": "idle",
-  "currentTask": "",
-  "files": [],
+  "status": "working",
+  "currentTask": "Lane 2 (Voice): fix httpx, enroll voice, cache demo lines, fill voice_id in personas.py",
+  "files": [
+    "voice/__init__.py",
+    "voice/clone.py",
+    "voice/cache_demo_lines.py",
+    "voice/config.py",
+    "audio/demo/.gitkeep",
+    "personas.py"
+  ],
   "blockers": [],
   "waitingOn": null,
-  "lastUpdated": "",
-  "notes": ""
+  "lastUpdated": "2026-06-06T23:15:00Z",
+  "notes": "TONY — voice handoff shape: (1) filling voice_id in personas.py directly; (2) creating voice/config.py with STT_PLUGIN='deepgram' and AUDIO_CACHE_DIR='audio/demo' — import those two constants. Pre-rendered lines land at audio/demo/{update,question,report_back}.mp3. No changes to Persona dataclass shape."
 }
