@@ -1,49 +1,33 @@
-# PRD 01 — Linear Content (Person A's memory)
+# PRD 01 — Linear Content (Melody)
 
-**Owner:** Melody · **Roadmap:** Phase 2 (Brain, content half) · **Requirements:** BRN-01 (content side)
-**Works alone against:** the corpus format in `00-FOUNDATION.md`. **Hands off:** `data/person_a_corpus.jsonl` → Nuha.
+**Owner:** Melody · **Lane:** Person A's memory — the content
+**You hand off:** `data/person_a_corpus.jsonl` → Nuha.
 
-## Mission
+## Your outcome
 
-Create the **real context** that makes the clone's answer specific and true. You author Person A's work life in **Linear** (the auth-migration ticket + related notes), then export it into the agreed **corpus file**. Your content *is* the moat — if the answer sounds specific and real, it's because your content had the specifics.
+Person A's real work context exists as a corpus file that's specific enough for the clone to answer the auth-migration questions with true, concrete detail. If the clone sounds real and specific in the demo, it's because your content held the specifics.
 
-## What you build
+## The interface you must honor
 
-1. **Author Person A's Linear content** — a believable, detailed slice of one project:
-   - The **auth-migration ticket** (status, what's done, what's blocked, the specific blocker).
-   - 2–4 related items: a couple of comments/updates, a related ticket, maybe a calendar item or Slack-style note.
-   - Make it **specific** — names, dates, the exact blocker. Vague content → vague answer → dead demo.
-2. **Export it to the corpus file** `data/person_a_corpus.jsonl`, one record per line, exactly in the format from `00-FOUNDATION.md`:
-   ```json
-   {"id": "...", "source": "linear|slack|calendar", "ref": "human locator", "text": "the content"}
-   ```
-   - `ref` is what shows on screen in the 🔎 trace — make it readable (e.g. `ENG-412 Auth migration`).
-   - Export can be manual (copy Linear → jsonl) or via the Linear API — your call.
+The corpus file — `data/person_a_corpus.jsonl`, one JSON record per line:
 
-## Scope
+```json
+{"id": "lin-eng-412", "source": "linear|slack|calendar", "ref": "ENG-412 Auth migration", "text": "..."}
+```
 
-**In:** the content + the corpus file. **Out:** Moss, retrieval, voice, the room (those are Nuha/Tony). You produce a **file**, nothing more.
+`ref` shows on screen in the retrieval trace, so keep it human-readable. That format is the only fixed thing — how you create the content is entirely yours.
 
-## Success criteria
+## Done looks like
 
-1. `data/person_a_corpus.jsonl` exists, valid format, one record per line.
-2. The content contains the **specific detail** the scripted demo question asks about (so retrieval has a right answer to find).
-3. At least one record is clearly the "auth-migration status" and one is the "blocker" the follow-up question targets.
+- The corpus file exists and is valid.
+- It contains the specific detail the demo follow-up targets (the auth-migration **status** and its **blocker**) — so retrieval has a right answer to find.
+- It reads as believable, real context.
 
-## Design decisions that are yours
+## Worth knowing
 
-- How rich/realistic to make it (more good content = more convincing demo, to a point).
-- The exact demo specifics — coordinate with Tony on the **scripted question** so your content has the matching answer.
-- Manual export vs. Linear API (manual is totally fine for 2 personas).
+- You're the **unblocker**: Nuha can't load Moss until a first version exists — ship an early draft fast (even a few records), then enrich.
+- Short, one-fact-per-record entries retrieve better than long multi-topic ones.
 
-## How to not wait on anyone
+## Hand-off
 
-You're the **unblocker** — start immediately, you depend on no one (just the format spec). Get a first `person_a_corpus.jsonl` to Nuha fast (even 3–4 records), then enrich it.
-
-## SDKs you touch
-
-Linear (UI or API) for authoring. No Moss/voice/LiveKit. Ground any Linear API use in current docs.
-
-## Next
-
-`/gsd-plan-phase 2` (you + Nuha share Phase 2 — your plan is the content half), or just author + export.
+Drop `data/person_a_corpus.jsonl` to Nuha (PRD 02). That's the whole interface.

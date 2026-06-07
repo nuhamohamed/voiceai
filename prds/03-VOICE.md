@@ -1,44 +1,34 @@
-# PRD 03 — Voice: Cloned Speech (Qwen / Minimax)
+# PRD 03 — Voice (Nuha)
 
-**Owner:** Nuha · **Roadmap:** Phase 3 · **Requirements:** VOX-01..04
-**Works alone.** **Hands off:** the voice config → Tony.
+**Owner:** Nuha · **Lane:** make the clone sound like Person A
+**You hand off:** Person A's cloned voice + the speak/listen config → Tony.
 
-## Mission
+## Your outcome
 
-Make the clone **sound like Person A**. Clone A's voice, provide the speak-in-A's-voice config the agent uses, the speech-to-text piece, and **pre-cached demo lines** as a stage safety net. Independent of Moss and the room — you can do this anytime.
+In the demo, the clone's update and answer **sound like Person A**, and a spoken question becomes text for the brain. The scripted "wow" lines play in A's cloned voice no matter what happens live.
 
-## What you build
+## How cloning actually works here (verified — pick your path)
 
-1. **VOX-01** Clone Person A's voice in **Qwen** (Minimax as TTS fallback) → a usable `voice_id`.
-2. **VOX-03** A TTS config that, given text, **speaks it in A's cloned voice** — packaged so Tony can plug it into LiveKit's TTS slot.
-3. **VOX-02** STT choice (e.g. the Deepgram plugin from the Moss×LiveKit install) so a spoken question becomes text.
-4. **VOX-04** **Pre-cache the exact demo lines** as audio files; a way to play them if live TTS glitches on stage. *Do this early — it's the insurance.*
+A Qwen-cloned voice does **not** drop straight into a LiveKit TTS slot. The real options:
 
-## Scope
+- **Recommended (guaranteed + Qwen sponsor credit):** clone A **offline** with Qwen/Alibaba, **pre-render the scripted lines** as audio, play them in the room. Zero live risk, no paid plan needed.
+- **Optional live clone:** LiveKit **Custom Voices** — clone in the LiveKit dashboard → `v_*` id → `tts="cartesia/sonic-3:v_…"`. ⚠️ needs a **paid LiveKit Cloud Ship-plan or higher** (uses Cartesia/Inworld, not Qwen) — confirm the hackathon plan tier first.
+- **Unscripted live speech:** a stock plugin voice (MiniMax/OpenAI). *(The MiniMax LiveKit plugin can't clone — stock voices only.)*
+- **STT:** a stock plugin (e.g. Deepgram) turns the spoken question into text.
 
-**In:** voice cloning, TTS config, STT choice, cached lines. **Out:** retrieval (your PRD `02`), the room/turn-taking/assembly (Tony — he wires your config in). You produce a **voice config + audio**, not the agent.
+The outcome (sounds like A, scripted lines guaranteed) is what matters — the mix is your call.
 
-## Success criteria
+## Done looks like
 
-1. Person A's voice is cloned (Qwen; Minimax fallback ready).
-2. Given text, the config speaks it in A's voice.
-3. A spoken question can be transcribed to text.
-4. The exact demo lines are pre-cached and play on demand if live TTS fails.
+- The scripted demo lines play in Person A's cloned voice (pre-rendered = always works).
+- A spoken question is transcribed to text for the brain.
+- Live answers speak in a voice (cloned if the plan allows, stock otherwise).
 
-## Coordinate with Tony (one thing)
+## Worth knowing
 
-Agree the **voice handoff shape** early — i.e., "Tony, you'll plug my voice in as `<plugin/config X>`." Then he builds the room with a placeholder voice and swaps yours in with one change.
+- The moat is live **retrieval**, not live **TTS** — cached cloned audio for the scripted lines is enough for the "wow." Don't over-invest in live cloning.
+- Independent of Moss and the room — start anytime. Agree one thing with Tony: how he plugs your voice + STT into the session.
 
-> ⚠️ **Verify against docs:** does Qwen/Minimax have a ready LiveKit TTS plugin, or do you/ Tony need a small **custom TTS node**? LiveKit supports both — check the current docs, don't assume.
+## Hand-off
 
-## How to not wait on anyone
-
-Fully independent — start now. Knock out the clone + cached lines fast, then move to your Moss-Retrieval PRD (`02`).
-
-## SDKs you touch
-
-**Qwen** (clone) · **Minimax** (TTS fallback) · STT plugin (e.g. Deepgram) · LiveKit TTS slot (with Tony). Ground every call in current docs — voice SDKs move fast.
-
-## Next
-
-`/gsd-plan-phase 3`, or build from the list. **Restart Claude Code first.**
+Give Tony the voice + STT config and the cached audio files; he wires them in.

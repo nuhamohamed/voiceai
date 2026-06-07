@@ -14,7 +14,7 @@ Build **the agent** — the LiveKit thing that joins the standup, listens, takes
 3. **LIV-03** The follow-up flow via Moss's official hook:
    ```python
    async def on_user_turn_completed(self, turn_ctx, new_message):
-       chunks = await retrieve(new_message.text, persona_id)      # Nuha's function
+       chunks = await retrieve(new_message.text_content, persona_id)  # Nuha's function
        turn_ctx.add_message(role="system", content=format(chunks)) # inject A's real context
        # LiveKit's LLM plugin answers; TTS speaks it in A's voice (Nuha's config)
        show_trace(chunks)   # 🔎 Moss → ref  (the visible moat)
