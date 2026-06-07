@@ -8,7 +8,7 @@ pytest>=8.0            # tests/
 # Confirm exact package names + versions on the Moss x LiveKit page / livekit-docs
 # BEFORE relying on them (source-driven — don't guess), then uncomment:
 #
-# moss                      # Moss retrieval (Nuha)
+moss                       # Moss retrieval (Nuha)
 # livekit-agents            # LiveKit agent + room (Tony)
 # livekit-plugins-openai    # LLM + TTS options (Tony)
 # livekit-plugins-deepgram  # STT (Nuha/Tony)

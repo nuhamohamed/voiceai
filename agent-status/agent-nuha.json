@@ -1,12 +1,10 @@
 {
   "agent": "Nuha",
-  "status": "working",
-  "currentTask": "Lane 1 (Moss retrieval): replace retrieve() stub with real MossClient.query",
-  "files": [
-    "brain/retrieval.py"
-  ],
+  "status": "idle",
+  "currentTask": "",
+  "files": [],
   "blockers": [],
   "waitingOn": null,
-  "lastUpdated": "2026-06-07T01:00:00Z",
-  "notes": "Lane 2 (Voice) DONE: voice_id enrolled, voice/config.py ready for Tony, audio/demo/{update,blocker,slack_summary}.wav cached in cloned voice (WAV format, not mp3). Starting Lane 1: replace brain/retrieval.py stub with real Moss retrieval."
+  "lastUpdated": "2026-06-07T02:00:00Z",
+  "notes": "Lane 1 DONE: brain/retrieval.py now uses MossClient.query(persona_id, query, QueryOptions(top_k=3, alpha=0.7)). brain/ingest.py loads each persona corpus into Moss (run once before demo: python -m brain.ingest). .env needs MOSS_PROJECT_ID + MOSS_PROJECT_KEY from portal.usemoss.dev. Lane 2 DONE: voice enrolled (qwen-tts-vc-nuha-voice-20260607144452804-6824), audio/demo/{update,blocker,slack_summary}.wav cached, voice/config.py ready for Tony."
 }
