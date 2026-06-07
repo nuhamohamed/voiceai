@@ -4,16 +4,6 @@ When a teammate misses standup, their **AI clone** joins in their cloned voice a
 
 Built at the Moss Conversational AI Hackathon. **Python + LiveKit.**
 
-## Who's building what
-
-| Person | Owns |
-|--------|------|
-| **Melody** | the persona's context, as a corpus file |
-| **Nuha** | Moss retrieval + voice cloning |
-| **Tony** | the LiveKit agent + room + Slack summary |
-
-Full briefs are in **`prds/`** (start with `prds/README.md`). Your paste-into-your-agent kickoff is in **`prds/handoffs/`**.
-
 ## How it works
 
 ```mermaid
