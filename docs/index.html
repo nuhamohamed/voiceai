@@ -400,6 +400,14 @@
     el.textContent = status || 'idle';
   }
 
+  // Escape untrusted data before interpolating into innerHTML (prevents XSS).
+  // Status JSON and GitHub API data (commit messages, author names, file paths)
+  // are attacker-influenceable on a public repo, so never inject them raw.
+  function esc(s) {
+    return String(s).replace(/[&<>"']/g, c =>
+      ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+  }
+
   function renderFiles(id, files, conflictSet) {
     const el = document.getElementById('files-' + id);
     if (!files || files.length === 0) {
@@ -408,7 +416,7 @@
     }
     el.innerHTML = files.map(f => {
       const cls = conflictSet.has(f) ? 'file-tag conflict' : 'file-tag';
-      return `<span class="${cls}">${f}</span>`;
+      return `<span class="${cls}">${esc(f)}</span>`;
     }).join('');
   }
 
@@ -418,7 +426,7 @@
       el.innerHTML = '<li style="color:var(--ok)">none</li>';
       return;
     }
-    el.innerHTML = blockers.map(b => `<li>${b}</li>`).join('');
+    el.innerHTML = blockers.map(b => `<li>${esc(b)}</li>`).join('');
   }
 
   function findConflicts(data) {
@@ -444,7 +452,7 @@
     }
     el.classList.add('visible');
     detail.innerHTML = conflicts.map(([file, owners]) =>
-      `<div style="margin-top:0.25rem"><code>${file}</code> is claimed by <strong>${owners.join(' and ')}</strong> — coordinate before editing.</div>`
+      `<div style="margin-top:0.25rem"><code>${esc(file)}</code> is claimed by <strong>${esc(owners.join(' and '))}</strong> — coordinate before editing.</div>`
     ).join('');
   }
 
@@ -505,9 +513,9 @@
         const msg = c.commit.message.split('\n')[0];
         const isStatus = msg.startsWith('[status]');
         return `<div class="commit-row">
-          <span class="commit-sha">${sha}</span>
-          <span class="commit-author">${author}</span>
-          <span class="commit-msg ${isStatus ? 'status-commit' : ''}">${msg}</span>
+          <span class="commit-sha">${esc(sha)}</span>
+          <span class="commit-author">${esc(author)}</span>
+          <span class="commit-msg ${isStatus ? 'status-commit' : ''}">${esc(msg)}</span>
         </div>`;
       }).join('');
     } catch {
