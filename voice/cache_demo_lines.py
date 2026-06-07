@@ -47,7 +47,7 @@ DEMO_LINES: dict[str, str] = {
 def cache_all(voice_id: str) -> None:
     DEMO_AUDIO_DIR.mkdir(parents=True, exist_ok=True)
     for name, text in DEMO_LINES.items():
-        out = str(DEMO_AUDIO_DIR / f"{name}.mp3")
+        out = str(DEMO_AUDIO_DIR / f"{name}.wav")
         print(f"Caching '{name}' ...")
         synthesize(text, voice_id, out)
     print(f"\nAll demo lines cached to {DEMO_AUDIO_DIR}/")
