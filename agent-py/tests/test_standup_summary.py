@@ -129,6 +129,19 @@ async def test_post_slack_summary_posts_text_payload(monkeypatch) -> None:
 
 
 @pytest.mark.asyncio
+async def test_post_slack_summary_prepends_mention(monkeypatch) -> None:
+    post = AsyncMock(return_value=SimpleNamespace(status_code=200, text="ok"))
+    monkeypatch.setattr(ss.httpx, "AsyncClient", _mock_httpx(post))
+
+    ok = await ss.post_slack_summary(
+        "the note", webhook_url="https://hooks/x", mention_user_id="U01ABC"
+    )
+
+    assert ok is True
+    assert post.call_args.kwargs["json"] == {"text": "<@U01ABC>\nthe note"}
+
+
+@pytest.mark.asyncio
 async def test_post_slack_summary_missing_url_returns_false(monkeypatch) -> None:
     monkeypatch.delenv("SLACK_WEBHOOK_URL", raising=False)
     post = AsyncMock()
@@ -167,6 +180,7 @@ async def test_post_slack_summary_non_ok_returns_false(monkeypatch) -> None:
 # ---------------------------------------------------------------------------
 @pytest.mark.asyncio
 async def test_wrap_up_keyword_ends_standup(monkeypatch) -> None:
+    import personas
     from livekit.agents import AgentSession, ChatContext, ChatMessage, StopResponse
 
     import agent as agent_mod
@@ -175,6 +189,8 @@ async def test_wrap_up_keyword_ends_standup(monkeypatch) -> None:
     fake_post = AsyncMock(return_value=True)
     monkeypatch.setattr(agent_mod, "summarize_transcript", fake_summarize)
     monkeypatch.setattr(agent_mod, "post_slack_summary", fake_post)
+    # Give the demo persona a Slack ID so we can prove it flows to the mention.
+    monkeypatch.setattr(personas.PERSONAS["person_a"], "slack_user_id", "U_TEST")
 
     async with AgentSession() as session:
         assistant = agent_mod.Assistant()  # room=None
@@ -198,7 +214,7 @@ async def test_wrap_up_keyword_ends_standup(monkeypatch) -> None:
         # The transcript handed to the summarizer contains the recorded turns.
         transcript_arg = fake_summarize.await_args.args[1]
         assert "PR #847 merged" in transcript_arg
-        fake_post.assert_awaited_once_with("THE SUMMARY")
+        fake_post.assert_awaited_once_with("THE SUMMARY", mention_user_id="U_TEST")
         assistant.session.shutdown.assert_called_once()
 
 

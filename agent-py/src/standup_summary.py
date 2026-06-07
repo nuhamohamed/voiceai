@@ -86,10 +86,20 @@ async def summarize_transcript(
     return text or "Standup summary: the summarizer returned no text."
 
 
-async def post_slack_summary(summary: str, webhook_url: str | None = None) -> bool:
+async def post_slack_summary(
+    summary: str,
+    webhook_url: str | None = None,
+    *,
+    mention_user_id: str | None = None,
+) -> bool:
     """POST the summary to a Slack Incoming Webhook. Returns True on success.
 
     Reads `SLACK_WEBHOOK_URL` from the environment when `webhook_url` is omitted.
+    When `mention_user_id` is given, the message is prefixed with `<@ID>` so the
+    absent person is @-mentioned (notified) in the summary channel. A webhook
+    posts only to its single pre-chosen channel, so the mention — not the
+    destination — is how the note reaches the right person.
+
     Never raises into the caller: a missing URL or a failed POST is logged
     loudly (not swallowed silently) and reported via the return value, so the
     agent can still leave the room cleanly even if Slack delivery fails.
@@ -102,9 +112,11 @@ async def post_slack_summary(summary: str, webhook_url: str | None = None) -> bo
         )
         return False
 
+    text = f"<@{mention_user_id}>\n{summary}" if mention_user_id else summary
+
     try:
         async with httpx.AsyncClient(timeout=10.0) as client:
-            resp = await client.post(url, json={"text": summary})
+            resp = await client.post(url, json={"text": text})
     except httpx.HTTPError:
         logger.exception("Failed to POST standup summary to Slack")
         return False

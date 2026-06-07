@@ -146,9 +146,12 @@ class Assistant(Agent):
         self._standup_ended = True
 
         transcript = format_transcript(self._transcript)
+        # @-mention the absent person this clone stood in for, so the summary
+        # (posted to the single webhook channel) notifies the right teammate.
+        mention = get_persona(self._persona_id).slack_user_id or None
         try:
             summary = await summarize_transcript(self.llm, transcript)
-            await post_slack_summary(summary)
+            await post_slack_summary(summary, mention_user_id=mention)
         except Exception:
             logger.exception("Failed to build/post the standup summary")
 

@@ -3,6 +3,7 @@
 A persona = a clone's identity: which Moss index to search, how it should sound/talk,
 and the cloned-voice handle. Add/edit personas here; keep the dataclass shape stable.
 """
+
 from __future__ import annotations
 
 from dataclasses import dataclass
@@ -10,11 +11,15 @@ from dataclasses import dataclass
 
 @dataclass
 class Persona:
-    id: str            # namespace key, e.g. "person_a"
-    name: str          # display name
-    system_prompt: str # character/voice + how to answer (grounding rules for the LLM)
-    voice_id: str      # cloned-voice handle for TTS — filled by Nuha (Qwen / LiveKit Custom Voice)
-    moss_index: str    # Moss index to retrieve from — usually == id
+    id: str  # namespace key, e.g. "person_a"
+    name: str  # display name
+    system_prompt: str  # character/voice + how to answer (grounding rules for the LLM)
+    voice_id: str  # cloned-voice handle for TTS — filled by Nuha (Qwen / LiveKit Custom Voice)
+    moss_index: str  # Moss index to retrieve from — usually == id
+    slack_user_id: str = ""  # Slack member ID (e.g. "U01ABCDEF") — the absent
+    # person the end-of-standup summary @-mentions in the summary channel. Find
+    # it in Slack: click the person -> profile -> ... menu -> "Copy member ID".
+    # Leave "" to post the summary without a mention.
 
 
 _GROUNDING = (
@@ -30,6 +35,7 @@ PERSONAS: dict[str, Persona] = {
         system_prompt=_GROUNDING.format(name="Nuha"),
         voice_id="qwen-tts-vc-nuha-voice-20260607144452804-6824",
         moss_index="person_a",
+        slack_user_id="",  # TODO: set to Nuha's Slack member ID (U...)
     ),
     "person_b": Persona(
         id="person_b",
@@ -37,6 +43,7 @@ PERSONAS: dict[str, Persona] = {
         system_prompt=_GROUNDING.format(name="Person B"),
         voice_id="qwen-tts-vc-nuha-voice-20260607144452804-6824",  # same clone for demo
         moss_index="person_b",
+        slack_user_id="",  # TODO: set to Person B's Slack member ID (U...)
     ),
 }
 
