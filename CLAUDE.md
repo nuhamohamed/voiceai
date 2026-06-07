@@ -8,7 +8,6 @@ When a teammate can't attend standup, **their clone joins in their cloned voice*
 
 - **Stack: Python + LiveKit.** **Source-driven — never hallucinate SDK APIs.** Ground every Moss / LiveKit / Qwen / Minimax call in current docs (the Moss × LiveKit page, the `livekit-docs` MCP).
 - **No secrets in the repo** — keys live in `.env` (gitignored).
-- **Demo integrity** — demo only what's real; pitch the full org-brain as vision.
 - **Don't change a shared interface alone** (see below) — that's what keeps the lanes decoupled.
 - **Say *why*, not just *what* — for decisions that touch others.** If a choice affects a shared interface or another lane (you change the `retrieve()` shape, rename a corpus field, pick a library someone has to wire in), put the reason in your **commit message** *and* your `agent-status` **notes** (it shows on the dashboard). Lane-internal choices don't need broadcasting.
 
