@@ -25,6 +25,7 @@ skills-lock.json
 # GSD planning is per-person/local — keep it out of the shared repo
 # (lets Tony re-run GSD without injecting planning docs or CLAUDE.md changes)
 .planning/
+.prds/
 
 # Audio caches (pre-cached demo lines may be large)
 *.wav.tmp
