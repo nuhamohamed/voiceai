@@ -28,14 +28,14 @@ PERSONAS: dict[str, Persona] = {
         id="person_a",
         name="Person A",
         system_prompt=_GROUNDING.format(name="Person A"),
-        voice_id="",          # TODO(Nuha): cloned-voice handle
+        voice_id="qwen-tts-vc-nuha-voice-20260607144452804-6824",
         moss_index="person_a",
     ),
     "person_b": Persona(
         id="person_b",
         name="Person B",
         system_prompt=_GROUNDING.format(name="Person B"),
-        voice_id="",          # TODO(Nuha)
+        voice_id="qwen-tts-vc-nuha-voice-20260607144452804-6824",  # same clone for demo
         moss_index="person_b",
     ),
 }
