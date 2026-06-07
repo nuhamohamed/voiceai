@@ -57,11 +57,6 @@ load_dotenv(_REPO_ROOT / ".env")
 
 PERSONA_ID = "person_a"  # the clone we demo
 
-# Saying any of these ends the standup: the clone posts the Slack summary and
-# leaves the room. Kept distinct from the demo-question keywords (block/status/
-# auth/migration) so a wrap-up never collides with a scripted answer.
-WRAP_UP_KEYWORDS = ("wrap up", "wrap-up", "adjourn", "end standup", "that's a wrap")
-
 
 class Assistant(Agent):
     """Person A's standup clone: answers follow-ups grounded in retrieve() context."""
@@ -96,8 +91,8 @@ class Assistant(Agent):
         `session.say(..., audio=wav_frames(...))`, which BYPASSES the TTS step
         entirely — so this override never touches them and the scripted path is
         unchanged. It DOES handle every text-only utterance: off-script LLM
-        replies plus the text-only `session.say()` greeting and wrap-up sign-off,
-        which now also speak in the clone voice (consistent voice throughout).
+        replies plus the text-only `session.say()` greeting, which now also speak
+        in the clone voice (consistent voice throughout).
 
         The pipeline still needs `tts=inference.TTS(...)` on the AgentSession (the
         default tts_node uses it); this override replaces the synthesis itself for
@@ -133,13 +128,14 @@ class Assistant(Agent):
         if text and text.strip():
             self._transcript.append((speaker, text))
 
-    async def _end_standup(self) -> None:
-        """Wrap up: build the transcript, summarize it, post to Slack, leave.
+    async def post_standup_summary(self) -> None:
+        """Summarize the standup transcript and post it to Slack. Idempotent.
 
-        Runs while the session is still alive, so `self.llm` is available and we
-        are not bound by the 10s shutdown-hook timeout. Any failure in summarize
-        or post is logged (inside post_slack_summary) but never blocks the agent
-        from leaving the room.
+        Called from `on_session_end` when the meeting ends (the last participant
+        leaves / the room closes). The `_standup_ended` guard means at most one
+        summary per session even if the hook is invoked more than once. Any
+        failure in summarize or post is logged but never propagates — a broken
+        Slack post must not turn into a failed session teardown.
         """
         if self._standup_ended:
             return
@@ -154,9 +150,6 @@ class Assistant(Agent):
             await post_slack_summary(summary, mention_user_id=mention)
         except Exception:
             logger.exception("Failed to build/post the standup summary")
-
-        # Leave the room (non-blocking; drains any pending speech first).
-        self.session.shutdown(drain=True)
 
     async def _publish_moss_context(self, query: str, chunks) -> None:
         if self._room is None:
@@ -185,17 +178,6 @@ class Assistant(Agent):
         search_knowledge path.
         """
         q = (new_message.text_content or "").lower()
-
-        # Wrap-up intent — ends the standup. Checked FIRST so "let's wrap up"
-        # never falls into a demo-answer branch. We speak a short sign-off, then
-        # summarize the transcript and post it to Slack before leaving.
-        if any(k in q for k in WRAP_UP_KEYWORDS):
-            await self.session.say(
-                "Got it — that's a wrap. I'll post the standup summary to Slack "
-                "and head out. Talk soon."
-            )
-            await self._end_standup()
-            raise StopResponse()
 
         # Blocker intent (Q2 — the moat). Check first: "what's blocking it" must
         # not be swallowed by the status branch.
@@ -261,9 +243,27 @@ def prewarm(proc: JobProcess):
 server.setup_fnc = prewarm
 
 
+async def on_session_end(ctx: JobContext) -> None:
+    """The meeting ended → summarize the standup and post it to Slack.
+
+    Fires when the room closes (the last non-agent participant leaves). This is
+    the documented place for end-of-session external calls — it's bounded by
+    session_end_timeout (5 min default), ample for an LLM summary + HTTP POST,
+    unlike a shutdown callback's 10s budget. We reach the live Assistant through
+    ctx.primary_session.current_agent so we reuse its accumulated transcript,
+    configured LLM, and persona mention (no globals, no re-derivation).
+    """
+    session = ctx.primary_session
+    if session is None:
+        return
+    agent = session.current_agent
+    if isinstance(agent, Assistant):
+        await agent.post_standup_summary()
+
+
 # Keep the registered dispatch name as "agent-py": the frontend (Task 6) sets
 # AGENT_NAME=agent-py to dispatch explicitly to this worker. Do not rename.
-@server.rtc_session(agent_name="agent-py")
+@server.rtc_session(agent_name="agent-py", on_session_end=on_session_end)
 async def my_agent(ctx: JobContext):
     # Logging setup
     # Add any other context you want in all log entries here

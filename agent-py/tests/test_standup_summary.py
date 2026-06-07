@@ -8,16 +8,15 @@ Three layers, none of which need a live room, mic, Slack, or an LLM:
   3. `post_slack_summary` — posts `{"text": summary}` to the webhook (httpx
      mocked), and degrades gracefully (returns False, no raise) when the URL is
      missing or Slack rejects the payload.
-  4. Routing — the REAL `Assistant.on_user_turn_completed` ends the standup on a
-     wrap-up keyword: it raises StopResponse and triggers summarize + post,
-     while leaving the two scripted demo questions untouched.
+  4. Trigger — the REAL `on_session_end` callback (invoked by the framework when
+     the meeting ends / the last participant leaves) summarizes the transcript
+     and posts it, exactly once, and no-ops when there is no active session.
 
 Style matches tests/test_demo_flow.py (path bootstrap, asyncio_mode=auto).
 """
 
 from __future__ import annotations
 
-import contextlib
 import pathlib
 import sys
 from types import SimpleNamespace
@@ -176,12 +175,18 @@ async def test_post_slack_summary_non_ok_returns_false(monkeypatch) -> None:
 
 
 # ---------------------------------------------------------------------------
-# 4. Routing — the real on_user_turn_completed ends the standup on wrap-up
+# 4. Trigger — the REAL on_session_end callback posts the summary when the
+#    meeting ends (the last participant leaves / the room closes). We drive the
+#    actual registered callback; only the LLM + Slack POST are mocked.
 # ---------------------------------------------------------------------------
+def _ctx_with_agent(agent) -> SimpleNamespace:
+    """Minimal JobContext stand-in: on_session_end only reads primary_session."""
+    return SimpleNamespace(primary_session=SimpleNamespace(current_agent=agent))
+
+
 @pytest.mark.asyncio
-async def test_wrap_up_keyword_ends_standup(monkeypatch) -> None:
+async def test_session_end_posts_summary(monkeypatch) -> None:
     import personas
-    from livekit.agents import AgentSession, ChatContext, ChatMessage, StopResponse
 
     import agent as agent_mod
 
@@ -192,52 +197,47 @@ async def test_wrap_up_keyword_ends_standup(monkeypatch) -> None:
     # Give the demo persona a Slack ID so we can prove it flows to the mention.
     monkeypatch.setattr(personas.PERSONAS["person_a"], "slack_user_id", "U_TEST")
 
-    async with AgentSession() as session:
-        assistant = agent_mod.Assistant()  # room=None
-        await session.start(assistant)
-        assistant.session.say = AsyncMock()
-        assistant.session.shutdown = MagicMock()  # non-blocking in prod; stub here
+    assistant = agent_mod.Assistant()  # room=None
+    # Turns the conversation_item_added listener would have recorded live.
+    assistant.record_turn("Teammate", "what's the status of auth?")
+    assistant.record_turn("Nuha (clone)", "PR #847 merged to staging.")
 
-        # Pretend a couple of real turns were recorded before the wrap-up.
-        assistant.record_turn("Teammate", "what's the status of auth?")
-        assistant.record_turn("Nuha (clone)", "PR #847 merged to staging.")
+    # Drive the REAL callback the framework invokes on meeting end.
+    await agent_mod.on_session_end(_ctx_with_agent(assistant))
 
-        msg = ChatMessage(role="user", content=["ok everyone, let's wrap up"])
-        stopped = False
-        try:
-            await assistant.on_user_turn_completed(ChatContext(), msg)
-        except StopResponse:
-            stopped = True
-
-        assert stopped, "wrap-up must raise StopResponse (suppress the LLM)"
-        fake_summarize.assert_awaited_once()
-        # The transcript handed to the summarizer contains the recorded turns.
-        transcript_arg = fake_summarize.await_args.args[1]
-        assert "PR #847 merged" in transcript_arg
-        fake_post.assert_awaited_once_with("THE SUMMARY", mention_user_id="U_TEST")
-        assistant.session.shutdown.assert_called_once()
+    fake_summarize.assert_awaited_once()
+    # The transcript handed to the summarizer contains the recorded turns.
+    transcript_arg = fake_summarize.await_args.args[1]
+    assert "PR #847 merged" in transcript_arg
+    fake_post.assert_awaited_once_with("THE SUMMARY", mention_user_id="U_TEST")
 
 
 @pytest.mark.asyncio
-async def test_wrap_up_only_summarizes_once(monkeypatch) -> None:
-    from livekit.agents import AgentSession, ChatContext, ChatMessage, StopResponse
-
+async def test_session_end_posts_only_once(monkeypatch) -> None:
     import agent as agent_mod
 
     fake_post = AsyncMock(return_value=True)
     monkeypatch.setattr(agent_mod, "summarize_transcript", AsyncMock(return_value="S"))
     monkeypatch.setattr(agent_mod, "post_slack_summary", fake_post)
 
-    async with AgentSession() as session:
-        assistant = agent_mod.Assistant()
-        await session.start(assistant)
-        assistant.session.say = AsyncMock()
-        assistant.session.shutdown = MagicMock()
+    assistant = agent_mod.Assistant()
+    assistant.record_turn("Teammate", "hi")
+    ctx = _ctx_with_agent(assistant)
 
-        for _ in range(2):  # a second wrap-up must not double-post
-            with contextlib.suppress(StopResponse):
-                await assistant.on_user_turn_completed(
-                    ChatContext(), ChatMessage(role="user", content=["let's wrap up"])
-                )
+    await agent_mod.on_session_end(ctx)  # a re-fired hook must not double-post
+    await agent_mod.on_session_end(ctx)
 
-        fake_post.assert_awaited_once()  # guarded by _standup_ended
+    fake_post.assert_awaited_once()  # guarded by _standup_ended
+
+
+@pytest.mark.asyncio
+async def test_session_end_without_session_is_noop(monkeypatch) -> None:
+    import agent as agent_mod
+
+    fake_post = AsyncMock()
+    monkeypatch.setattr(agent_mod, "post_slack_summary", fake_post)
+
+    # No active session (e.g. job ended before start) — must not crash or post.
+    await agent_mod.on_session_end(SimpleNamespace(primary_session=None))
+
+    fake_post.assert_not_awaited()
