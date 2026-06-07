@@ -20,7 +20,7 @@ export function MossResultsPanel({
   return (
     <div className={cn('space-y-3', className)} {...props}>
       <h3 className="text-muted-foreground text-sm font-medium tracking-wide uppercase">
-        Knowledge Matches
+        🔎 Moss source
       </h3>
       <div className="space-y-2">
         {events.map(({ id, query, matches, timeTakenMs }) => (
@@ -41,16 +41,25 @@ export function MossResultsPanel({
               {matches.length === 0 ? (
                 <li className="italic">No knowledge matches found.</li>
               ) : (
-                matches.map((match, index) => (
-                  <li key={`${id}-${index}`} className="space-y-1">
-                    <p className="leading-snug">{match.text}</p>
-                    {typeof match.score === 'number' && (
-                      <p className="text-muted-foreground text-xs">
-                        Relevance: {match.score.toFixed(2)}
-                      </p>
-                    )}
-                  </li>
-                ))
+                matches.map((match, index) => {
+                  const meta = (match.metadata ?? {}) as { ref?: string; source?: string };
+                  return (
+                    <li key={`${id}-${index}`} className="space-y-1">
+                      {meta.ref && (
+                        <p className="text-foreground text-xs font-semibold">
+                          🔎 {meta.ref}
+                          {meta.source ? ` (${meta.source})` : ''}
+                        </p>
+                      )}
+                      <p className="leading-snug">{match.text}</p>
+                      {typeof match.score === 'number' && (
+                        <p className="text-muted-foreground text-xs">
+                          Relevance: {match.score.toFixed(2)}
+                        </p>
+                      )}
+                    </li>
+                  );
+                })
               )}
             </ol>
           </details>

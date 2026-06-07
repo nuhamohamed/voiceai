@@ -33,10 +33,10 @@ export interface AppConfig {
 }
 
 export const APP_CONFIG_DEFAULTS: AppConfig = {
-  companyName: 'Moss',
-  pageTitle: 'Moss LiveKit Docs Helper',
+  companyName: 'Standup Proxy',
+  pageTitle: 'Person A — Standup Clone',
   pageDescription:
-    'A voice assistant that answers LiveKit questions from a Moss knowledge base and remembers what you tell it',
+    "Person A's clone joins standup in their voice, gives the update, and answers follow-ups grounded in their real work context retrieved from Moss",
 
   supportsChatInput: true,
   supportsVideoInput: true,
