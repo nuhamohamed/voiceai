@@ -233,15 +233,17 @@ Replace the starter's Moss-backed docs-helper with our standup clone: persona fr
 In `agent-py/src/agent.py`, after the existing imports, add:
 ```python
 import sys, pathlib
-_REPO_ROOT = pathlib.Path(__file__).resolve().parents[2]  # agent-py/src/agent.py -> repo root
-if str(_REPO_ROOT) not in sys.path:
-    sys.path.insert(0, str(_REPO_ROOT))
+_REPO_ROOT = pathlib.Path(__file__).resolve().parents[2]   # agent-py/src/agent.py -> repo root
+_SRC = pathlib.Path(__file__).resolve().parents[0]         # agent-py/src
+for _p in (str(_REPO_ROOT), str(_SRC)):                    # explicit inserts: robust across dev/start
+    if _p not in sys.path:                                 # subprocess spawn (don't rely on sys.path[0])
+        sys.path.insert(0, _p)
 
 from brain.retrieval import retrieve            # noqa: E402  our seam (Nuha's Moss lands behind it)
 from personas import get_persona                # noqa: E402
 from grounding import format_chunks_for_llm, build_moss_context_payload  # noqa: E402
 ```
-(`grounding` is a flat import because `uv run src/agent.py` puts `src/` on `sys.path[0]`.)
+(We insert `src/` explicitly rather than trusting `sys.path[0]`, because LiveKit `dev`/`start` spawn job subprocesses where the script-dir-on-path assumption may not hold.)
 Remove the starter's `from moss import DocumentInfo, MossClient, QueryOptions` line.
 
 - [ ] **Step 2: Set the demo persona constant**
@@ -355,7 +357,15 @@ On join, the clone delivers the update in its cloned voice by playing `audio/dem
 
 Create `agent-py/src/playback.py`:
 ```python
-"""Stream a local WAV file into the room as AudioFrames (LiveKit Playing Audio recipe)."""
+"""Stream a local WAV file into the room as AudioFrames (LiveKit Playing Audio recipe).
+
+IMPORTANT: our Qwen-rendered WAVs have a BOGUS data-chunk size in the header —
+`wave.getnframes()` reports ~1.07e9 frames for a ~30s clip (verified). The
+recipe's `samples_per_channel=wav.getnframes()` would feed that garbage to
+AudioFrame and break playback. So derive samples_per_channel from the bytes
+actually read. `readframes` is bounded by the real file data, so it returns the
+true ~30s of audio.
+"""
 from __future__ import annotations
 
 import wave
@@ -366,12 +376,15 @@ from livekit import rtc
 
 async def wav_frames(path: str) -> AsyncIterator[rtc.AudioFrame]:
     with wave.open(path, "rb") as wav:
-        frames = wav.readframes(wav.getnframes())
+        sample_width = wav.getsampwidth()
+        num_channels = wav.getnchannels()
+        frames = wav.readframes(wav.getnframes())                       # real data (bounded by file)
+        samples_per_channel = len(frames) // (sample_width * num_channels)  # robust to bogus header
         yield rtc.AudioFrame(
             data=frames,
             sample_rate=wav.getframerate(),
-            num_channels=wav.getnchannels(),
-            samples_per_channel=wav.getnframes(),
+            num_channels=num_channels,
+            samples_per_channel=samples_per_channel,
         )
 ```
 
@@ -410,10 +423,10 @@ git commit -m "feat(agent): play cached clone-voice update.wav on join"
 
 ## Task 4: Frontend trace panel shows OUR chunks
 
-Because Task 1 emits the exact `moss_context` shape the starter already parses, the panel works with no parser change. This task wires creds, runs it, and rebrands the labels to "Moss source".
+Task 1 emits the exact `moss_context` shape the **parser** (`useMossContextEvents.ts`) expects, so the hook needs no change. But the **panel** (`moss-results-panel.tsx`) only renders `text` + `score` by default — it ignores `metadata`. So this task wires creds, runs it, rebrands, and adds a few lines to surface our `ref`/`source` badge. (The chunk *text* already shows ENG-419 etc., so the moat lands either way; the badge is the polish.)
 
 **Files:**
-- Modify: `frontend/app-config.ts` (branding), `frontend/components/app/moss-results-panel.tsx` (label text only)
+- Modify: `frontend/app-config.ts` (branding), `frontend/components/app/moss-results-panel.tsx` (heading + render metadata)
 
 - [ ] **Step 1: Install frontend deps**
 
@@ -424,11 +437,34 @@ Expected: install completes (Node 22+, pnpm 10+).
 
 Run: `pnpm dev`
 Open `http://localhost:3000`, click **Start call**, allow mic.
-Expected: the clone plays the update; ask "what's blocking the auth migration?"; the **panel fills with our chunk(s)** — text + score + `ENG-412 (linear)` from `metadata` — as the clone answers.
+Expected: the clone plays the update; ask "what's blocking the auth migration?"; the **panel fills with our chunk(s)** — the retrieved text + relevance score — as the clone answers. (The `ref`/`source` badge appears after Step 3.)
 
-- [ ] **Step 3: Rebrand labels (cosmetic, keep TypeScript strict)**
+- [ ] **Step 3: Rebrand + surface the ref/source badge (keep TypeScript strict)**
 
-In `frontend/app-config.ts`, change the app/company name to the Standup Proxy (e.g. `companyName: "Standup Proxy"`, page title to "Person A — Standup Clone"). In `frontend/components/app/moss-results-panel.tsx`, change the panel heading text from "Knowledge Matches" to "🔎 Moss source". Do not change the data shape or loosen `tsconfig` strictness.
+**a.** In `frontend/app-config.ts`, set branding to the Standup Proxy (e.g. `companyName: "Standup Proxy"`, page title "Person A — Standup Clone").
+
+**b.** In `frontend/components/app/moss-results-panel.tsx`, change the heading `Knowledge Matches` → `🔎 Moss source`.
+
+**c.** In the same file, render our `metadata.ref`/`metadata.source` above each chunk. Replace the `matches.map(...)` block with:
+```tsx
+{matches.map((match, index) => {
+  const meta = (match.metadata ?? {}) as { ref?: string; source?: string };
+  return (
+    <li key={`${id}-${index}`} className="space-y-1">
+      {meta.ref && (
+        <p className="text-foreground text-xs font-semibold">
+          🔎 {meta.ref}{meta.source ? ` (${meta.source})` : ''}
+        </p>
+      )}
+      <p className="leading-snug">{match.text}</p>
+      {typeof match.score === 'number' && (
+        <p className="text-muted-foreground text-xs">Relevance: {match.score.toFixed(2)}</p>
+      )}
+    </li>
+  );
+})}
+```
+Do not loosen `tsconfig` strictness; the `meta` cast narrows the parser's `unknown` metadata to a typed shape.
 
 - [ ] **Step 4: Lint the frontend (project rule: run after changes)**
 
@@ -471,7 +507,16 @@ The starter answers in generic `inference.TTS`. Pick ONE path to put the answer 
 
 **Files:** Modify: `agent-py/src/agent.py`
 
-- [ ] **Step 1: Route the rehearsed follow-up to `blocker.wav`, suppress the LLM's spoken reply**
+> **Spike first (5 min):** `session.say(audio=…)` + `StopResponse()` inside `on_user_turn_completed` is the one unproven mechanism in this plan. Prove it in isolation before relying on it. If it fights you, the fallback is clean — Task 5's generic answer + the clone-voice *opening update* already demonstrate the clone, so ship that.
+
+- [ ] **Step 1: Disable preemptive generation (so it can't race the cached WAV)**
+
+The starter sets `preemptive_generation=True`, which starts the LLM reply *before* the turn ends — it could leak a half-generated generic-voice answer before our `StopResponse()` fires. In `my_agent`'s `AgentSession(...)`, set:
+```python
+        preemptive_generation=False,
+```
+
+- [ ] **Step 2: Route the rehearsed follow-up to `blocker.wav`, suppress the LLM's spoken reply**
 
 Add an `on_user_turn_completed` hook to `Assistant` that, for the demo question, retrieves (drives the panel) and speaks the cached clone WAV instead of an LLM-generated answer:
 ```python
@@ -490,11 +535,11 @@ from livekit.agents import ChatContext, ChatMessage, StopResponse  # add to impo
             raise StopResponse()  # don't let the LLM also answer
 ```
 
-- [ ] **Step 2: Console + frontend verification**
+- [ ] **Step 3: Console + frontend verification**
 
 Run: `pnpm dev`, ask the blocker question. Expected: panel shows the real chunk AND the answer is spoken in the **clone voice** (the cached WAV). Other questions still go through the live LLM path (generic voice).
 
-- [ ] **Step 3: Commit**
+- [ ] **Step 4: Commit**
 
 ```bash
 git add agent-py/src/agent.py
