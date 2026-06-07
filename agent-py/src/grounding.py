@@ -5,6 +5,7 @@ The moss_context shape MUST match frontend/hooks/useMossContextEvents.ts: a
 data.matches list of {text, score?, metadata?}. We put ref/source in metadata so
 the on-screen panel can show "ENG-412 (linear)".
 """
+
 from __future__ import annotations
 
 from datetime import datetime, timezone
@@ -12,8 +13,14 @@ from datetime import datetime, timezone
 
 def format_chunks_for_llm(chunks) -> str:
     """One grounded block per chunk, labelled by ref so the LLM can cite it."""
-    parts = [f"[{c.ref}] {c.text}".strip() for c in chunks if getattr(c, "text", "").strip()]
-    return "\n\n".join(parts) if parts else "No relevant context was found for that question."
+    parts = [
+        f"[{c.ref}] {c.text}".strip() for c in chunks if getattr(c, "text", "").strip()
+    ]
+    return (
+        "\n\n".join(parts)
+        if parts
+        else "No relevant context was found for that question."
+    )
 
 
 def build_moss_context_payload(query: str, chunks) -> dict:
@@ -28,6 +35,8 @@ def build_moss_context_payload(query: str, chunks) -> dict:
         "data": {
             "query": query,
             "matches": matches,
-            "timestamp": datetime.now(timezone.utc).timestamp(),  # epoch seconds; frontend *1000
+            "timestamp": datetime.now(
+                timezone.utc
+            ).timestamp(),  # epoch seconds; frontend *1000
         },
     }

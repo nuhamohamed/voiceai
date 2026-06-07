@@ -1,18 +1,35 @@
-import sys, pathlib
-_ROOT = pathlib.Path(__file__).resolve().parents[2]            # repo root: brain.retrieval, personas, voice
-_SRC = pathlib.Path(__file__).resolve().parents[1] / "src"    # agent-py/src: grounding, playback
+import pathlib
+import sys
+
+_ROOT = (
+    pathlib.Path(__file__).resolve().parents[2]
+)  # repo root: brain.retrieval, personas, voice
+_SRC = (
+    pathlib.Path(__file__).resolve().parents[1] / "src"
+)  # agent-py/src: grounding, playback
 for _p in (str(_ROOT), str(_SRC)):
     if _p not in sys.path:
         sys.path.insert(0, _p)
 
-from brain.retrieval import RetrievedChunk
-from grounding import format_chunks_for_llm, build_moss_context_payload
+from brain.retrieval import RetrievedChunk  # noqa: E402
+
+from grounding import build_moss_context_payload, format_chunks_for_llm  # noqa: E402
 
 
 def _chunks():
     return [
-        RetrievedChunk(text="Auth migration blocked on ENG-419.", source="linear", ref="ENG-412", score=0.91),
-        RetrievedChunk(text="Ivan wants refresh-token rotation.", source="slack", ref="#security", score=0.74),
+        RetrievedChunk(
+            text="Auth migration blocked on ENG-419.",
+            source="linear",
+            ref="ENG-412",
+            score=0.91,
+        ),
+        RetrievedChunk(
+            text="Ivan wants refresh-token rotation.",
+            source="slack",
+            ref="#security",
+            score=0.74,
+        ),
     ]
 
 
