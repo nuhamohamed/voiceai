@@ -1,16 +1,10 @@
 {
   "agent": "Melody",
-  "status": "working",
-  "currentTask": "Authoring Person A corpus — auth-migration ticket + blocker thread (PR #1)",
-  "files": [
-    "data/person_a_corpus.jsonl",
-    "scripts/seed_check.py",
-    "scripts/pull_linear.py",
-    ".env.example",
-    ".gitignore"
-  ],
+  "status": "review",
+  "currentTask": "PR open: feat/melody-corpus → main (Person A corpus + Linear puller)",
+  "files": [],
   "blockers": [],
   "waitingOn": null,
-  "lastUpdated": "2026-06-06T22:10:00Z",
-  "notes": "Building on branch feat/linear-ingestion. Stage 1 is hand-authored demo records (unblocks Nuha); Stage 2 adds Linear API puller. Not touching retrieve(), Moss client, persona config, or LiveKit code."
+  "lastUpdated": "2026-06-06T22:45:00Z",
+  "notes": "PR #3 open. data/person_a_corpus.jsonl ready for Nuha. seed_check.py passes 11/11."
 }

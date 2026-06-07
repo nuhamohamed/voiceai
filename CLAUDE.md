@@ -10,6 +10,7 @@ When a teammate can't attend standup, **their clone joins in their cloned voice*
 - **No secrets in the repo** — keys live in `.env` (gitignored).
 - **Don't change a shared interface alone** (see below) — that's what keeps the lanes decoupled.
 - **Say *why*, not just *what* — for decisions that touch others.** If a choice affects a shared interface or another lane (you change the `retrieve()` shape, rename a corpus field, pick a library someone has to wire in), put the reason in your **commit message** *and* your `agent-status` **notes** (it shows on the dashboard). Lane-internal choices don't need broadcasting.
+- **Branch per feature — don't build on `main`.** Each feature gets its own branch (`feat/<lane>-<short-name>`, e.g. `feat/nuha-moss`); open a PR to `main` when it's ready. Continue on the existing branch if one already exists for that feature; create a new one for new work. This keeps in-progress code from colliding on `main`. *(Exception: your tiny `agent-status/*.json` updates push straight to `main` so the dashboard stays live.)*
 
 ## Work breakdown
 
