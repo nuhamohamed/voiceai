@@ -81,6 +81,11 @@ class Assistant(Agent):
         # in my_agent). Used to build the end-of-standup Slack summary.
         self._transcript: list[tuple[str, str]] = []
         self._standup_ended = False  # guard: summarize + post at most once
+        # True once a HUMAN speaks. A real standup has at least one human turn;
+        # a spurious/abandoned session (e.g. a frontend reconnect that opens and
+        # closes a room with only the agent's greeting) has none — we use this to
+        # skip posting an empty "no conversation" summary for those.
+        self._had_user_turn = False
 
     async def tts_node(
         self, text: AsyncIterable[str], model_settings: ModelSettings
@@ -123,10 +128,16 @@ class Assistant(Agent):
             return
         yield frame
 
-    def record_turn(self, speaker: str, text: str) -> None:
-        """Append one conversation turn to the running standup transcript."""
+    def record_turn(self, speaker: str, text: str, *, is_user: bool = False) -> None:
+        """Append one conversation turn to the running standup transcript.
+
+        `is_user` marks a human (non-clone) turn; the first one flips
+        `_had_user_turn`, which gates whether we post a summary at session end.
+        """
         if text and text.strip():
             self._transcript.append((speaker, text))
+            if is_user:
+                self._had_user_turn = True
 
     async def post_standup_summary(self) -> None:
         """Summarize the standup transcript and post it to Slack. Idempotent.
@@ -136,10 +147,18 @@ class Assistant(Agent):
         summary per session even if the hook is invoked more than once. Any
         failure in summarize or post is logged but never propagates — a broken
         Slack post must not turn into a failed session teardown.
+
+        Skips entirely if no human ever spoke (an abandoned/reconnect session):
+        a standup needs a participant, and we don't want to spam the channel with
+        "no conversation captured" notes for throwaway rooms.
         """
         if self._standup_ended:
             return
         self._standup_ended = True
+
+        if not self._had_user_turn:
+            logger.info("Standup had no human turns — skipping Slack summary.")
+            return
 
         transcript = format_transcript(self._transcript)
         # @-mention the absent person this clone stood in for, so the summary
@@ -312,8 +331,9 @@ async def my_agent(ctx: JobContext):
         item = ev.item
         if not isinstance(item, ChatMessage):
             return
-        speaker = "Nuha (clone)" if item.role == "assistant" else "Teammate"
-        assistant.record_turn(speaker, item.text_content or "")
+        is_user = item.role != "assistant"
+        speaker = "Teammate" if is_user else "Nuha (clone)"
+        assistant.record_turn(speaker, item.text_content or "", is_user=is_user)
 
     # Start the session, which initializes the voice pipeline and warms up the models
     await session.start(

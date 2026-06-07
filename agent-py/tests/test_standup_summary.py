@@ -199,7 +199,7 @@ async def test_session_end_posts_summary(monkeypatch) -> None:
 
     assistant = agent_mod.Assistant()  # room=None
     # Turns the conversation_item_added listener would have recorded live.
-    assistant.record_turn("Teammate", "what's the status of auth?")
+    assistant.record_turn("Teammate", "what's the status of auth?", is_user=True)
     assistant.record_turn("Nuha (clone)", "PR #847 merged to staging.")
 
     # Drive the REAL callback the framework invokes on meeting end.
@@ -221,13 +221,33 @@ async def test_session_end_posts_only_once(monkeypatch) -> None:
     monkeypatch.setattr(agent_mod, "post_slack_summary", fake_post)
 
     assistant = agent_mod.Assistant()
-    assistant.record_turn("Teammate", "hi")
+    assistant.record_turn("Teammate", "hi", is_user=True)
     ctx = _ctx_with_agent(assistant)
 
     await agent_mod.on_session_end(ctx)  # a re-fired hook must not double-post
     await agent_mod.on_session_end(ctx)
 
     fake_post.assert_awaited_once()  # guarded by _standup_ended
+
+
+@pytest.mark.asyncio
+async def test_session_end_skips_when_no_human_spoke(monkeypatch) -> None:
+    """Abandoned/reconnect session (only the agent greeting) must not post."""
+    import agent as agent_mod
+
+    fake_summarize = AsyncMock(return_value="S")
+    fake_post = AsyncMock(return_value=True)
+    monkeypatch.setattr(agent_mod, "summarize_transcript", fake_summarize)
+    monkeypatch.setattr(agent_mod, "post_slack_summary", fake_post)
+
+    assistant = agent_mod.Assistant()
+    # Only the clone's greeting was recorded — no human ever spoke.
+    assistant.record_turn("Nuha (clone)", "Hi, I'm Nuha's standup clone.")
+
+    await agent_mod.on_session_end(_ctx_with_agent(assistant))
+
+    fake_summarize.assert_not_awaited()  # never even builds a summary
+    fake_post.assert_not_awaited()  # and never posts the junk note
 
 
 @pytest.mark.asyncio
