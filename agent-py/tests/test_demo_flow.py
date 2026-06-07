@@ -2,18 +2,16 @@
 
 This proves everything about the demo that does NOT require a live room/mic:
 
-  1. Routing — the REAL production hook `Assistant.on_user_turn_completed`
-     selects the right cached WAV per question and falls through off-script:
-       - a status question  -> update.wav  + StopResponse (LLM suppressed)
-       - a blocker question -> blocker.wav + StopResponse (LLM suppressed)
-       - an off-script question -> no StopResponse, retrieve() NOT called
-     We drive the actual hook (no refactor of agent.py) inside a ROOMLESS
+  1. Routing (FULLY LIVE) — the REAL production hook
+     `Assistant.on_user_turn_completed` intercepts NOTHING. Every question,
+     including the former demo anchors (status, blocker), falls through to the
+     live LLM + search_knowledge path: the hook raises no StopResponse, speaks
+     no cached WAV, and runs no retrieve() of its own (retrieval now happens
+     inside search_knowledge). We drive the actual hook inside a ROOMLESS
      AgentSession, exactly like tests/test_agent.py. `Assistant()` defaults
      room=None, so `_publish_moss_context` returns early — no data-channel to
-     mock. We stub `agent.retrieve` (no Moss/network here) and `agent.wav_frames`
-     (records the WAV path the branch chose) and no-op `session.say` (a 26-32s
-     cached WAV must not actually play in a unit test). StopResponse-vs-no-raise
-     is the branch discriminator; the recorded WAV name proves WHICH branch.
+     mock. We stub `agent.retrieve` (no Moss/network here) and no-op
+     `session.say`; the hook must touch neither.
 
   2. Moat retrieval (REAL Moss) — the bare Q2 demo string the production hook
      actually passes, `"what's actually blocking it?"`, retrieves chunks whose
@@ -74,43 +72,19 @@ Q_BLOCKER = "what's actually blocking it?"
 Q_OFFSCRIPT = "how are you feeling today?"
 
 
-def _recording_wav_frames(recorded: list[str]):
-    """Stand-in for playback.wav_frames: record the chosen WAV path, yield nothing.
-
-    The branch builds say(audio=wav_frames(wav)); we capture `wav` synchronously
-    at call time, independent of whether the (stubbed) say() ever iterates it.
-    """
-
-    def _factory(path: str):
-        recorded.append(path)
-
-        async def _gen():  # an async generator that yields no frames
-            return
-            yield  # pragma: no cover  (marks this a generator)
-
-        return _gen()
-
-    return _factory
-
-
 async def _run_turn(question: str, monkeypatch) -> dict:
     """Drive the real on_user_turn_completed for `question` in a roomless session.
 
-    Returns {"stopped": bool, "wavs": [basenames], "retrieve_called": bool}.
+    Returns {"stopped": bool, "said": bool, "retrieve_called": bool}. Fully-live
+    means all three are False for every question — the hook intercepts nothing.
     """
-    recorded: list[str] = []
     fake_retrieve = AsyncMock(return_value=[])
-
     monkeypatch.setattr(agent_mod, "retrieve", fake_retrieve)
-    monkeypatch.setattr(agent_mod, "wav_frames", _recording_wav_frames(recorded))
 
     say_mock = AsyncMock()
     async with AgentSession() as session:
         assistant = agent_mod.Assistant()  # room=None -> _publish_moss_context no-ops
         await session.start(assistant)
-        # A 26-32s cached WAV must not actually play in a unit test. Hold our own
-        # reference so we can read call_args AFTER the session context closes
-        # (assistant.session is only accessible while the activity is running).
         assistant.session.say = say_mock
 
         msg = ChatMessage(role="user", content=[question])
@@ -120,51 +94,28 @@ async def _run_turn(question: str, monkeypatch) -> dict:
         except StopResponse:
             stopped = True
 
-    # The spoken transcript is the first positional arg to session.say(...). It
-    # must match demo-script.md so the on-screen transcript lines up with the WAV.
-    spoken = ""
-    if say_mock.call_args is not None:
-        spoken = say_mock.call_args.args[0]
-
     return {
         "stopped": stopped,
-        "wavs": [pathlib.Path(p).name for p in recorded],
+        "said": say_mock.called,
         "retrieve_called": fake_retrieve.called,
-        "spoken": spoken,
     }
 
 
 # ---------------------------------------------------------------------------
-# 1. Routing — the real production hook picks the right WAV / falls through
+# 1. Routing (FULLY LIVE) — the hook intercepts nothing; every question
+#    (status, blocker, off-script) falls through to the live LLM path.
 # ---------------------------------------------------------------------------
+@pytest.mark.parametrize("question", [Q_STATUS, Q_BLOCKER, Q_OFFSCRIPT])
 @pytest.mark.asyncio
-async def test_status_question_routes_to_update_wav(monkeypatch) -> None:
-    out = await _run_turn(Q_STATUS, monkeypatch)
-    assert out["stopped"], "status question must raise StopResponse (suppress the LLM)"
-    assert out["wavs"] == ["update.wav"], f"expected update.wav, got {out['wavs']}"
-    assert out["retrieve_called"], "status branch should run retrieve() for the trace"
-    # Spoken transcript matches the Q1 line in demo-script.md (drives the on-screen text).
-    assert "PR #847" in out["spoken"] and "ENG-419" in out["spoken"]
-
-
-@pytest.mark.asyncio
-async def test_blocker_question_routes_to_blocker_wav(monkeypatch) -> None:
-    out = await _run_turn(Q_BLOCKER, monkeypatch)
-    assert out["stopped"], "blocker question must raise StopResponse (suppress the LLM)"
-    assert out["wavs"] == ["blocker.wav"], f"expected blocker.wav, got {out['wavs']}"
-    assert out["retrieve_called"], "blocker branch should run retrieve() for the trace"
-    # Spoken transcript matches the Q2 moat line in demo-script.md.
-    assert "ENG-419" in out["spoken"] and "reuse detection" in out["spoken"]
-
-
-@pytest.mark.asyncio
-async def test_offscript_question_falls_through(monkeypatch) -> None:
-    out = await _run_turn(Q_OFFSCRIPT, monkeypatch)
-    assert not out["stopped"], "off-script question must NOT raise StopResponse"
-    assert out["wavs"] == [], f"off-script must play no cached WAV, got {out['wavs']}"
+async def test_every_question_goes_live(question: str, monkeypatch) -> None:
+    out = await _run_turn(question, monkeypatch)
+    assert not out["stopped"], (
+        f"{question!r}: hook must not raise StopResponse (the LLM must answer)"
+    )
+    assert not out["said"], f"{question!r}: hook must speak no cached answer"
     assert not out["retrieve_called"], (
-        "off-script must not run the cached-branch retrieve(); it falls through "
-        "to the live LLM + search_knowledge path"
+        f"{question!r}: hook must run no cached-branch retrieve() — retrieval now "
+        "happens inside the search_knowledge tool on the live path"
     )
 
 

@@ -10,13 +10,11 @@ from livekit.agents import (
     Agent,
     AgentServer,
     AgentSession,
-    ChatContext,
     ChatMessage,
     JobContext,
     JobProcess,
     ModelSettings,
     RunContext,
-    StopResponse,
     TurnHandlingOptions,
     cli,
     function_tool,
@@ -36,10 +34,8 @@ for _p in (str(_REPO_ROOT), str(_SRC)):  # explicit inserts: robust across dev/s
 
 from brain.retrieval import retrieve  # noqa: E402  our seam (Nuha's Moss behind it)
 from personas import get_persona  # noqa: E402
-from voice.config import AUDIO_CACHE_DIR  # noqa: E402  Nuha's seam
 
 from grounding import build_moss_context_payload, format_chunks_for_llm  # noqa: E402
-from playback import wav_frames  # noqa: E402  flat import (src/ on sys.path[0])
 from qwen_tts import synthesize_clone  # noqa: E402  clone-voice TTS for live answers
 from standup_summary import (  # noqa: E402
     format_transcript,
@@ -183,60 +179,11 @@ class Assistant(Agent):
         except Exception:
             logger.exception("Failed to publish moss_context data")
 
-    async def on_user_turn_completed(
-        self, turn_ctx: ChatContext, new_message: ChatMessage
-    ) -> None:
-        """Question-triggered cached clone-voice answers for the two demo questions.
-
-        The demo is QUESTION-TRIGGERED (not an unprompted monologue): the PM asks
-        Q1 (status) then Q2 (blocker). For each, we run the REAL retrieve() so the
-        on-screen Moss trace reflects exactly what Moss returns, then speak the
-        pre-rendered clone-voice WAV (the transcript text matches demo-script.md so
-        the on-screen transcript lines up), and raise StopResponse so the LLM does
-        not also answer. Any other question falls through to the normal LLM
-        search_knowledge path.
-        """
-        q = (new_message.text_content or "").lower()
-
-        # Blocker intent (Q2 — the moat). Check first: "what's blocking it" must
-        # not be swallowed by the status branch.
-        if any(k in q for k in ("block", "blocking", "blocker")):
-            chunks = await retrieve(new_message.text_content, self._persona_id)
-            await self._publish_moss_context(new_message.text_content, chunks)
-            wav = str(_REPO_ROOT / AUDIO_CACHE_DIR / "blocker.wav")
-            await self.session.say(
-                "Ivan's concern is that the current implementation issues "
-                "long-lived refresh tokens — if one leaks, the attacker has a long "
-                "window. He wants each refresh to rotate the token and revoke the "
-                "old one, with reuse detection that invalidates the whole token "
-                "family if a stale refresh gets replayed. It's a bigger lift than "
-                "I'd scoped, so I added it as ENG-419 and started Thursday. Should "
-                "be done Friday for Ivan's review.",
-                audio=wav_frames(wav),
-            )
-            raise StopResponse()
-
-        # Status intent (Q1 — opening). e.g. "what's the status of the auth
-        # migration?" / "where is the migration?" — status/update/where + the topic.
-        if any(k in q for k in ("status", "update", "where")) and any(
-            k in q for k in ("auth", "migration")
-        ):
-            chunks = await retrieve(new_message.text_content, self._persona_id)
-            await self._publish_moss_context(new_message.text_content, chunks)
-            wav = str(_REPO_ROOT / AUDIO_CACHE_DIR / "update.wav")
-            await self.session.say(
-                "The backend OAuth callback and token exchange shipped Tuesday — "
-                "PR #847 merged and deployed to staging Wednesday, sign-in works "
-                "there. Ivan reviewed the spec Wednesday and flagged that we need "
-                "sliding-window refresh-token rotation with reuse detection before "
-                "prod. I'm implementing that now under ENG-419 — should land Friday. "
-                "Jamie's doing PKCE on the frontend in parallel under ENG-418. "
-                "Earliest prod rollout: Tuesday next week.",
-                audio=wav_frames(wav),
-            )
-            raise StopResponse()
-
-        # Otherwise: fall through to the normal LLM + search_knowledge path.
+    # FULLY LIVE: no on_user_turn_completed override and no scripted/cached answers.
+    # Every question falls through to the live LLM, which calls search_knowledge to
+    # ground its reply in real Moss retrieval and speaks it in the Qwen clone voice
+    # (tts_node). There is no keyword routing and no canned audio — all spoken
+    # content is generated per-turn from retrieved context.
 
     @function_tool()
     async def search_knowledge(self, context: RunContext, query: str) -> str:
@@ -351,12 +298,13 @@ async def my_agent(ctx: JobContext):
     # Join the room and connect to the user
     await ctx.connect()
 
-    # Short spoken greeting once connected. The demo OPENS with the PM asking Q1,
-    # so the clone must NOT monologue update.wav unprompted — that line is now
-    # triggered by the status question in on_user_turn_completed. Triggered here
-    # (not in Agent.on_enter) per the documented LiveKit pattern so it runs
-    # against a connected room and on_enter stays deterministic for the test suite.
-    await session.say("Hi, I'm Nuha's standup clone — ask me anything about my work.")
+    # Short spoken greeting once connected — persona-derived, not a hardcoded name.
+    # Triggered here (not in Agent.on_enter) per the documented LiveKit pattern so
+    # it runs against a connected room and on_enter stays deterministic for tests.
+    persona = get_persona(PERSONA_ID)
+    await session.say(
+        f"Hi, I'm {persona.name}'s standup clone — ask me anything about my work."
+    )
 
 
 if __name__ == "__main__":
