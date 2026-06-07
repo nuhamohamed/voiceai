@@ -26,8 +26,8 @@ _GROUNDING = (
 PERSONAS: dict[str, Persona] = {
     "person_a": Persona(
         id="person_a",
-        name="Person A",
-        system_prompt=_GROUNDING.format(name="Person A"),
+        name="Nuha",
+        system_prompt=_GROUNDING.format(name="Nuha"),
         voice_id="qwen-tts-vc-nuha-voice-20260607144452804-6824",
         moss_index="person_a",
     ),
