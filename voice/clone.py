@@ -14,27 +14,26 @@ import sys
 
 import httpx
 import dashscope
-from dashscope.audio.tts_v2 import SpeechSynthesizer
 from dotenv import load_dotenv
 
 load_dotenv()
 
 API_KEY = os.getenv("DASHSCOPE_API_KEY")
 ENROLLMENT_URL = "https://dashscope-intl.aliyuncs.com/api/v1/services/audio/tts/customization"
-TTS_MODEL = "qwen3-tts-vc-2026-01-22"
+ENROLLMENT_MODEL = "qwen-voice-enrollment"   # fixed — do not change
+TTS_MODEL = "qwen3-tts-vc-2026-01-22"        # must match target_model used at enrollment
 VOICE_ID_PATH = pathlib.Path("voice_samples/voice_id.json")
 
 
 def enroll_voice(audio_path: str, name: str = "nuha") -> str:
     """Upload audio sample to Qwen, return the cloned voice_id."""
     audio_bytes = pathlib.Path(audio_path).read_bytes()
-    # m4a is MPEG-4 audio
     suffix = pathlib.Path(audio_path).suffix.lower()
     mime = "audio/mp4" if suffix == ".m4a" else f"audio/{suffix.lstrip('.')}"
     data_uri = f"data:{mime};base64,{base64.b64encode(audio_bytes).decode()}"
 
     payload = {
-        "model": "qwen-voice-enrollment",
+        "model": ENROLLMENT_MODEL,
         "input": {
             "action": "create",
             "target_model": TTS_MODEL,
@@ -46,11 +45,12 @@ def enroll_voice(audio_path: str, name: str = "nuha") -> str:
 
     print(f"Enrolling voice from {audio_path} ...")
     resp = httpx.post(ENROLLMENT_URL, json=payload, headers=headers)
-    resp.raise_for_status()
+    if not resp.is_success:
+        print("Error response:", resp.json())
+        resp.raise_for_status()
     voice_id = resp.json()["output"]["voice"]
     print(f"Voice enrolled: {voice_id}")
 
-    # Persist so other scripts can reuse without re-enrolling
     VOICE_ID_PATH.parent.mkdir(parents=True, exist_ok=True)
     VOICE_ID_PATH.write_text(json.dumps({"voice_id": voice_id, "name": name}))
     print(f"Saved voice_id to {VOICE_ID_PATH}")
@@ -60,16 +60,22 @@ def enroll_voice(audio_path: str, name: str = "nuha") -> str:
 def synthesize(text: str, voice_id: str, output_path: str) -> None:
     """Synthesize text in the cloned voice and save to output_path."""
     dashscope.api_key = API_KEY
-    dashscope.base_websocket_api_url = (
-        "wss://dashscope-intl.aliyuncs.com/api-ws/v1/inference"
+    dashscope.base_http_api_url = "https://dashscope-intl.aliyuncs.com/api/v1"
+
+    response = dashscope.MultiModalConversation.call(
+        model=TTS_MODEL,
+        api_key=API_KEY,
+        text=text,
+        voice=voice_id,
+        stream=False,
     )
 
-    synthesizer = SpeechSynthesizer(model=TTS_MODEL, voice=voice_id)
-    audio = synthesizer.call(text)
+    audio_url = response.output.audio.url
+    audio_bytes = httpx.get(audio_url).content
 
     out = pathlib.Path(output_path)
     out.parent.mkdir(parents=True, exist_ok=True)
-    out.write_bytes(audio)
+    out.write_bytes(audio_bytes)
     print(f"Saved audio: {output_path}")
 
 
