@@ -52,16 +52,28 @@ flowchart TB
 
 **Owners:** 🟣 Melody (content) · 🟢 Nuha (Moss retrieval + voice) · 🟠 Tony (LiveKit agent + room + Slack). The moat is `retrieve()` pulling the **right real chunk** live, shown on screen *and* spoken.
 
-## Get started
+## Run the demo
 
-The brain runs on the standard library — no keys needed to test the text path:
+The live agent (`agent-py/`) and the on-screen 🔎 trace panel (`frontend/`) are built on the official LiveKit + Moss starter. Two sets of credentials: **LiveKit** in `agent-py/.env.local` and **Moss** in `.env`.
 
 ```bash
-python3 scripts/harness.py "what's blocking the auth migration?"   # see retrieval (uses the stub)
-python3 -m pytest tests/ -q                                        # contract + moat test
+# 1. Build the persona's Moss index from the corpus (once, or whenever the corpus changes)
+uv run --project agent-py python -m brain.ingest
+
+# 2. Run the agent + frontend together
+pnpm dev      # then open http://localhost:3000 → "Start call" → allow the mic
 ```
 
-For the real build: `pip install -r requirements.txt`, then `cp .env.example .env` and fill in keys. Read your PRD in `prds/`.
+In the call, ask **"What's the status of the auth migration?"**, then **"What's actually blocking it?"** — the clone answers in its cloned voice while the retrieved Moss chunks light up on screen (ref · source · relevance).
+
+**Quick checks** (no room/voice — just the retrieval seam + tests):
+
+```bash
+uv run --project agent-py python scripts/harness.py "what's blocking the auth migration?"
+uv --directory agent-py run pytest -q     # grounding + integration tests (12)
+```
+
+New here? Read your PRD in `prds/` (live-agent detail in `prds/04-LIVE-AGENT-*.md`).
 
 ## Working together
 
