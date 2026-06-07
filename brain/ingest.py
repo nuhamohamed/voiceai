@@ -28,13 +28,7 @@ DATA_DIR = pathlib.Path(__file__).parent.parent / "data"
 PERSONAS = ["person_a", "person_b"]
 
 
-def _load_corpus(persona_id: str) -> list[DocumentInfo]:
-    path = DATA_DIR / f"{persona_id}_corpus.jsonl"
-    if not path.exists():
-        fallback = DATA_DIR / "sample_corpus.jsonl"
-        print(f"  [{persona_id}] corpus not found, using sample: {fallback}")
-        path = fallback
-
+def _read_jsonl(path: pathlib.Path) -> list[DocumentInfo]:
     docs: list[DocumentInfo] = []
     with open(path, encoding="utf-8") as f:
         for line in f:
@@ -52,6 +46,27 @@ def _load_corpus(persona_id: str) -> list[DocumentInfo]:
                     },
                 )
             )
+    return docs
+
+
+def _load_corpus(persona_id: str) -> list[DocumentInfo]:
+    path = DATA_DIR / f"{persona_id}_corpus.jsonl"
+    if not path.exists():
+        fallback = DATA_DIR / "sample_corpus.jsonl"
+        print(f"  [{persona_id}] corpus not found, using sample: {fallback}")
+        path = fallback
+
+    docs = _read_jsonl(path)
+
+    # Additively merge Unsiloed-parsed document chunks if present (see
+    # brain/ingest_docs.py). Kept in a separate file so the hand-authored
+    # corpus is never clobbered.
+    docs_path = DATA_DIR / f"{persona_id}_docs.jsonl"
+    if docs_path.exists():
+        doc_chunks = _read_jsonl(docs_path)
+        print(f"  [{persona_id}] + {len(doc_chunks)} document chunks from {docs_path.name}")
+        docs.extend(doc_chunks)
+
     return docs
 
 

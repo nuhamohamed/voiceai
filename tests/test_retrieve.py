@@ -32,7 +32,19 @@ def test_moat_right_chunk() -> None:
     assert "block" in blob or "ttl" in blob, f"top chunk doesn't name the blocker: {top.text}"
 
 
+def test_moat_unsiloed_doc_chunk() -> None:
+    # The sponsor moment: the Unsiloed-parsed product doc must dominate retrieval
+    # for the release question, so the on-screen trace visibly cites the PDF
+    # (source="doc") rather than Slack/Linear. Requires brain/ingest_docs.py +
+    # brain/ingest to have been run (data/person_a_docs.jsonl baked into Moss).
+    chunks = asyncio.run(retrieve("What shipped in the last release?", "person_a"))
+    doc_chunks = [c for c in chunks if c.source == "doc"]
+    assert len(doc_chunks) >= 3, f"PDF should dominate; got sources {[c.source for c in chunks]}"
+    assert any("hippo-product-doc" in c.ref for c in chunks), "no hippo-product-doc citation in trace"
+
+
 if __name__ == "__main__":
     test_contract_shape()
     test_moat_right_chunk()
-    print("OK — retrieval contract + moat tests pass (stub)")
+    test_moat_unsiloed_doc_chunk()
+    print("OK — retrieval contract + moat tests pass")
