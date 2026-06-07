@@ -1,8 +1,11 @@
+import asyncio
 import logging
 import pathlib
 import sys
+from collections.abc import AsyncIterable
 
 from dotenv import load_dotenv
+from livekit import rtc
 from livekit.agents import (
     Agent,
     AgentServer,
@@ -11,8 +14,10 @@ from livekit.agents import (
     ChatMessage,
     JobContext,
     JobProcess,
+    ModelSettings,
     RunContext,
     StopResponse,
+    TurnHandlingOptions,
     cli,
     function_tool,
     inference,
@@ -35,12 +40,27 @@ from voice.config import AUDIO_CACHE_DIR  # noqa: E402  Nuha's seam
 
 from grounding import build_moss_context_payload, format_chunks_for_llm  # noqa: E402
 from playback import wav_frames  # noqa: E402  flat import (src/ on sys.path[0])
+from qwen_tts import synthesize_clone  # noqa: E402  clone-voice TTS for live answers
+from standup_summary import (  # noqa: E402
+    format_transcript,
+    post_slack_summary,
+    summarize_transcript,
+)
 
 logger = logging.getLogger("agent")
 
+# LiveKit creds + Moss creds live in agent-py/.env.local; SLACK_WEBHOOK_URL (and
+# other shared secrets) live in the repo-root .env. Load both — .env.local is
+# loaded first so it wins for any overlapping key (load_dotenv won't override).
 load_dotenv(".env.local")
+load_dotenv(_REPO_ROOT / ".env")
 
 PERSONA_ID = "person_a"  # the clone we demo
+
+# Saying any of these ends the standup: the clone posts the Slack summary and
+# leaves the room. Kept distinct from the demo-question keywords (block/status/
+# auth/migration) so a wrap-up never collides with a scripted answer.
+WRAP_UP_KEYWORDS = ("wrap up", "wrap-up", "adjourn", "end standup", "that's a wrap")
 
 
 class Assistant(Agent):
@@ -60,6 +80,80 @@ class Assistant(Agent):
         )
         self._room = room
         self._persona_id = PERSONA_ID
+        self._voice_id = persona.voice_id  # enrolled Qwen clone, for live tts_node
+        # Running transcript of the standup: (speaker, text) per turn. Filled by
+        # record_turn() from the session's conversation_item_added event (wired
+        # in my_agent). Used to build the end-of-standup Slack summary.
+        self._transcript: list[tuple[str, str]] = []
+        self._standup_ended = False  # guard: summarize + post at most once
+
+    async def tts_node(
+        self, text: AsyncIterable[str], model_settings: ModelSettings
+    ) -> AsyncIterable[rtc.AudioFrame]:
+        """Speak LIVE (off-script) answers in Person A's Qwen voice clone.
+
+        The two scripted demo answers play pre-rendered WAVs via
+        `session.say(..., audio=wav_frames(...))`, which BYPASSES the TTS step
+        entirely — so this override never touches them and the scripted path is
+        unchanged. It DOES handle every text-only utterance: off-script LLM
+        replies plus the text-only `session.say()` greeting and wrap-up sign-off,
+        which now also speak in the clone voice (consistent voice throughout).
+
+        The pipeline still needs `tts=inference.TTS(...)` on the AgentSession (the
+        default tts_node uses it); this override replaces the synthesis itself for
+        the live path. We collect the (short, 1-3 sentence) text, synthesize once
+        via Qwen, and yield a single 24kHz mono 16-bit AudioFrame.
+
+        Synthesis is one-shot (non-streaming) and blocking, so we run it off the
+        event loop with asyncio.to_thread; the live answer pauses briefly before
+        speaking. On any failure we fall back to the default (generic-voice) TTS
+        so the agent still answers rather than going silent.
+        """
+        collected = "".join([chunk async for chunk in text]).strip()
+        if not collected:
+            return
+        try:
+            frame = await asyncio.to_thread(synthesize_clone, collected, self._voice_id)
+        except Exception:
+            logger.exception(
+                "Qwen clone TTS failed; falling back to default TTS for: %r",
+                collected[:80],
+            )
+
+            async def _one() -> AsyncIterable[str]:
+                yield collected
+
+            async for f in Agent.default.tts_node(self, _one(), model_settings):
+                yield f
+            return
+        yield frame
+
+    def record_turn(self, speaker: str, text: str) -> None:
+        """Append one conversation turn to the running standup transcript."""
+        if text and text.strip():
+            self._transcript.append((speaker, text))
+
+    async def _end_standup(self) -> None:
+        """Wrap up: build the transcript, summarize it, post to Slack, leave.
+
+        Runs while the session is still alive, so `self.llm` is available and we
+        are not bound by the 10s shutdown-hook timeout. Any failure in summarize
+        or post is logged (inside post_slack_summary) but never blocks the agent
+        from leaving the room.
+        """
+        if self._standup_ended:
+            return
+        self._standup_ended = True
+
+        transcript = format_transcript(self._transcript)
+        try:
+            summary = await summarize_transcript(self.llm, transcript)
+            await post_slack_summary(summary)
+        except Exception:
+            logger.exception("Failed to build/post the standup summary")
+
+        # Leave the room (non-blocking; drains any pending speech first).
+        self.session.shutdown(drain=True)
 
     async def _publish_moss_context(self, query: str, chunks) -> None:
         if self._room is None:
@@ -88,6 +182,17 @@ class Assistant(Agent):
         search_knowledge path.
         """
         q = (new_message.text_content or "").lower()
+
+        # Wrap-up intent — ends the standup. Checked FIRST so "let's wrap up"
+        # never falls into a demo-answer branch. We speak a short sign-off, then
+        # summarize the transcript and post it to Slack before leaving.
+        if any(k in q for k in WRAP_UP_KEYWORDS):
+            await self.session.say(
+                "Got it — that's a wrap. I'll post the standup summary to Slack "
+                "and head out. Talk soon."
+            )
+            await self._end_standup()
+            raise StopResponse()
 
         # Blocker intent (Q2 — the moat). Check first: "what's blocking it" must
         # not be swallowed by the status branch.
@@ -173,20 +278,43 @@ async def my_agent(ctx: JobContext):
         tts=inference.TTS(
             model="cartesia/sonic-3", voice="9626c31c-bec5-4cca-baa8-f8ba9e84c8bc"
         ),
-        # VAD and turn detection are used to determine when the user is speaking and when the agent should respond
-        # See more at https://docs.livekit.io/agents/build/turns
-        turn_detection=MultilingualModel(),
         vad=ctx.proc.userdata["vad"],
-        # Keep preemptive generation OFF: a speculatively-started LLM reply could
-        # leak generic-voice audio before our on_user_turn_completed cached-WAV +
-        # StopResponse fires for the two demo questions.
-        # See https://docs.livekit.io/agents/build/audio/#preemptive-generation
-        preemptive_generation=False,
+        # Turn detection + preemptive generation now live under turn_handling
+        # (the bare turn_detection=/preemptive_generation= kwargs are deprecated
+        # for removal in v2.0). Behavior is preserved exactly:
+        #   - turn_detection: the LiveKit multilingual turn detector (unchanged).
+        #   - preemptive_generation {"enabled": False}: KEEP it OFF — a
+        #     speculatively-started LLM reply could leak generic-voice audio
+        #     before our on_user_turn_completed cached-WAV + StopResponse fires
+        #     for the two demo questions. This is the equivalent of the old
+        #     preemptive_generation=False.
+        # See https://docs.livekit.io/reference/agents/turn-handling-options/
+        turn_handling=TurnHandlingOptions(
+            turn_detection=MultilingualModel(),
+            preemptive_generation={"enabled": False},
+        ),
     )
+
+    assistant = Assistant(room=ctx.room)
+
+    # Record every committed turn into the standup transcript. This fires for
+    # user speech AND the agent's own replies — including the cached-WAV demo
+    # answers, since session.say(..., add_to_chat_ctx=True) commits their text.
+    # ConversationItemAddedEvent.item is a ChatMessage with .role/.text_content;
+    # non-message items (tool calls) have no text and are skipped by record_turn.
+    from livekit.agents import ConversationItemAddedEvent
+
+    @session.on("conversation_item_added")
+    def _on_item_added(ev: ConversationItemAddedEvent) -> None:
+        item = ev.item
+        if not isinstance(item, ChatMessage):
+            return
+        speaker = "Nuha (clone)" if item.role == "assistant" else "Teammate"
+        assistant.record_turn(speaker, item.text_content or "")
 
     # Start the session, which initializes the voice pipeline and warms up the models
     await session.start(
-        agent=Assistant(room=ctx.room),
+        agent=assistant,
         room=ctx.room,
         room_options=room_io.RoomOptions(
             audio_input=room_io.AudioInputOptions(
