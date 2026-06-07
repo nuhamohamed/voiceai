@@ -1,0 +1,4 @@
+{"id": "lin-eng-412", "source": "linear", "ref": "ENG-412 Auth migration", "text": "Auth migration is blocked on a token-refresh race condition; waiting on infra to bump the Redis session TTL before we can roll to prod."}
+{"id": "sl-auth-0603", "source": "slack", "ref": "#auth 2026-06-03", "text": "Confirmed the OAuth callback works in staging. Prod rollout is gated on the Redis TTL fix from infra."}
+{"id": "lin-eng-418", "source": "linear", "ref": "ENG-418 Session store", "text": "Spiked moving session storage to Redis; PR is open and needs review from the platform team."}
+{"id": "cal-0605", "source": "calendar", "ref": "Infra sync 2026-06-05", "text": "Synced with infra on the Redis TTL bump; they will ship it Friday, which unblocks the auth migration."}

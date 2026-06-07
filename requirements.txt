@@ -1,0 +1,14 @@
+# Foundation (the stub retrieve() + text harness + tests) runs on the Python
+# standard library alone — you only need these once you wire real keys / SDKs.
+
+python-dotenv>=1.0     # load .env in the real implementation
+pytest>=8.0            # tests/
+
+# --- Real implementation deps ---
+# Confirm exact package names + versions on the Moss x LiveKit page / livekit-docs
+# BEFORE relying on them (source-driven — don't guess), then uncomment:
+#
+# moss                      # Moss retrieval (Nuha)
+# livekit-agents            # LiveKit agent + room (Tony)
+# livekit-plugins-openai    # LLM + TTS options (Tony)
+# livekit-plugins-deepgram  # STT (Nuha/Tony)

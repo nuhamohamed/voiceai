@@ -1,6 +1,7 @@
 # Secrets — never commit (per project constraint: no API keys in repo)
 .env
 .env.*
+!.env.example
 *.key
 
 # Python
