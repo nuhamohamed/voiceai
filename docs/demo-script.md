@@ -25,8 +25,8 @@ second one is where the moat lands.
 
 **Expected on-screen retrieval (🔎 Moss trace):**
 1. `lin-eng-412` — Auth migration umbrella ticket (MEL-5 in Linear)
-2. `lin-eng-412-c-tony-status` — Nuha's Jun 5 status comment on MEL-5
-3. `slack-infra-tony-update` — Nuha's #infra Jun 5 status post
+2. `lin-eng-412-c-nuha-status` — Nuha's Jun 5 status comment on MEL-5
+3. `slack-infra-nuha-update` — Nuha's #infra Jun 5 status post
 
 **Expected synthesized answer (spoken in Nuha's cloned voice):**
 > "The backend OAuth callback and token exchange shipped Tuesday — PR #847
@@ -94,12 +94,12 @@ The 17 records in `data/person_a_corpus.jsonl` break down as:
 | `lin-eng-419` (hand-authored) | Ticket body | mirrors MEL-8 |
 | `lin-eng-423` (hand-authored) | Ticket body | mirrors MEL-9 |
 | `lin-eng-455` (hand-authored) | Ticket body | mirrors MEL-10 |
-| `lin-eng-412-c-tony-status` (hand-authored) | Comment on MEL-5 | (in MEL-5) |
+| `lin-eng-412-c-nuha-status` (hand-authored) | Comment on MEL-5 | (in MEL-5) |
 | `lin-eng-412-c-ivan-rotation` (hand-authored) | Comment on MEL-5 | (in MEL-5) |
 | `lin-mel-5..10` (pulled via `scripts/pull_linear.py`) | Ticket bodies + comments | MEL-5..10 |
 | `slack-security-ivan-rotation` | Slack message | — (hand-authored only) |
-| `slack-infra-tony-update` | Slack message | — (hand-authored only) |
-| `cal-auth-review-ivan-tony` | Calendar event | — (hand-authored only) |
+| `slack-infra-nuha-update` | Slack message | — (hand-authored only) |
+| `cal-auth-review-ivan-nuha` | Calendar event | — (hand-authored only) |
 
 ## Corpus that grounds this
 
