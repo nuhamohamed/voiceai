@@ -1,0 +1,530 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Agent Coordination Dashboard</title>
+  <style>
+    :root {
+      --bg: #0f1117;
+      --surface: #1a1d27;
+      --border: #2e3148;
+      --accent-a: #6366f1;
+      --accent-b: #10b981;
+      --accent-c: #f59e0b;
+      --text: #e2e8f0;
+      --muted: #64748b;
+      --danger: #ef4444;
+      --warn: #f59e0b;
+      --ok: #10b981;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'Segoe UI', system-ui, sans-serif;
+      min-height: 100vh;
+      padding: 2rem;
+    }
+
+    header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 2rem;
+      padding-bottom: 1rem;
+      border-bottom: 1px solid var(--border);
+    }
+
+    header h1 {
+      font-size: 1.4rem;
+      font-weight: 600;
+      letter-spacing: -0.02em;
+    }
+
+    #meta {
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+      font-size: 0.8rem;
+      color: var(--muted);
+    }
+
+    #refresh-btn {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      color: var(--text);
+      padding: 0.3rem 0.8rem;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 0.8rem;
+    }
+    #refresh-btn:hover { border-color: var(--accent-a); }
+
+    /* Config banner */
+    #config-banner {
+      background: var(--surface);
+      border: 1px solid var(--warn);
+      border-radius: 10px;
+      padding: 1rem 1.2rem;
+      margin-bottom: 1.5rem;
+      font-size: 0.85rem;
+      display: none;
+    }
+    #config-banner.visible { display: block; }
+    #config-banner label { color: var(--warn); font-weight: 600; display: block; margin-bottom: 0.5rem; }
+    #repo-input {
+      background: var(--bg);
+      border: 1px solid var(--border);
+      color: var(--text);
+      padding: 0.4rem 0.7rem;
+      border-radius: 6px;
+      font-size: 0.85rem;
+      width: 360px;
+      margin-right: 0.5rem;
+    }
+    #save-repo-btn {
+      background: var(--accent-a);
+      border: none;
+      color: #fff;
+      padding: 0.4rem 0.9rem;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 0.85rem;
+    }
+
+    /* Conflict alert */
+    #conflict-alert {
+      background: #2d1515;
+      border: 1px solid var(--danger);
+      border-radius: 10px;
+      padding: 1rem 1.2rem;
+      margin-bottom: 1.5rem;
+      font-size: 0.85rem;
+      display: none;
+    }
+    #conflict-alert.visible { display: block; }
+    #conflict-alert strong { color: var(--danger); }
+
+    /* Agent cards */
+    .agents-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+      gap: 1.2rem;
+      margin-bottom: 2rem;
+    }
+
+    .agent-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 1.4rem;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .agent-card::before {
+      content: '';
+      position: absolute;
+      top: 0; left: 0; right: 0;
+      height: 3px;
+    }
+    .agent-card.agent-a::before { background: var(--accent-a); }
+    .agent-card.agent-b::before { background: var(--accent-b); }
+    .agent-card.agent-c::before { background: var(--accent-c); }
+
+    .card-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 1rem;
+    }
+
+    .agent-label {
+      display: flex;
+      align-items: center;
+      gap: 0.6rem;
+      font-weight: 600;
+      font-size: 1rem;
+    }
+
+    .agent-dot {
+      width: 10px; height: 10px;
+      border-radius: 50%;
+    }
+    .agent-a .agent-dot { background: var(--accent-a); }
+    .agent-b .agent-dot { background: var(--accent-b); }
+    .agent-c .agent-dot { background: var(--accent-c); }
+
+    .status-badge {
+      font-size: 0.7rem;
+      font-weight: 600;
+      padding: 0.2rem 0.6rem;
+      border-radius: 20px;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+    .status-working  { background: #1a2e1a; color: var(--ok); border: 1px solid var(--ok); }
+    .status-blocked  { background: #2d1515; color: var(--danger); border: 1px solid var(--danger); }
+    .status-idle     { background: #1e2030; color: var(--muted); border: 1px solid var(--border); }
+    .status-review   { background: #2d2510; color: var(--warn); border: 1px solid var(--warn); }
+
+    .field { margin-bottom: 0.75rem; }
+    .field-label {
+      font-size: 0.7rem;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: var(--muted);
+      margin-bottom: 0.25rem;
+    }
+    .field-value {
+      font-size: 0.88rem;
+      color: var(--text);
+      line-height: 1.4;
+    }
+    .field-value.empty { color: var(--muted); font-style: italic; }
+
+    .file-list {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.35rem;
+      margin-top: 0.25rem;
+    }
+    .file-tag {
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      padding: 0.15rem 0.45rem;
+      font-size: 0.75rem;
+      font-family: monospace;
+      color: var(--text);
+    }
+    .file-tag.conflict {
+      border-color: var(--danger);
+      color: var(--danger);
+      background: #2d1515;
+    }
+
+    .blocker-list { list-style: none; }
+    .blocker-list li {
+      font-size: 0.82rem;
+      padding: 0.2rem 0;
+      color: var(--danger);
+    }
+    .blocker-list li::before { content: '⚠ '; }
+
+    .timestamp {
+      font-size: 0.72rem;
+      color: var(--muted);
+      margin-top: 0.5rem;
+    }
+
+    /* Git log panel */
+    #git-section h2 {
+      font-size: 1rem;
+      font-weight: 600;
+      margin-bottom: 1rem;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      font-size: 0.75rem;
+    }
+
+    #git-log {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 1rem;
+      font-family: monospace;
+      font-size: 0.8rem;
+      max-height: 280px;
+      overflow-y: auto;
+    }
+
+    .commit-row {
+      display: grid;
+      grid-template-columns: 70px 100px 1fr;
+      gap: 0.75rem;
+      padding: 0.35rem 0;
+      border-bottom: 1px solid var(--border);
+      line-height: 1.4;
+    }
+    .commit-row:last-child { border-bottom: none; }
+    .commit-sha { color: var(--accent-a); }
+    .commit-author { color: var(--accent-b); }
+    .commit-msg { color: var(--text); }
+    .commit-msg.status-commit { color: var(--warn); }
+
+    /* Error state */
+    .load-error {
+      color: var(--muted);
+      font-style: italic;
+      font-size: 0.82rem;
+    }
+  </style>
+</head>
+<body>
+
+<header>
+  <h1>Agent Coordination Dashboard</h1>
+  <div id="meta">
+    <span id="last-refresh">–</span>
+    <button id="refresh-btn" onclick="loadAll()">↻ Refresh</button>
+  </div>
+</header>
+
+<div id="config-banner" class="visible">
+  <label>⚙ Configure your GitHub repo to load live data</label>
+  <span style="color:var(--muted); font-size:0.8rem; display:block; margin-bottom:0.5rem;">
+    Format: <code>owner/repo</code> (e.g. <code>acmecorp/my-project</code>)
+  </span>
+  <input id="repo-input" type="text" placeholder="owner/repo" />
+  <button id="save-repo-btn" onclick="saveRepo()">Save</button>
+</div>
+
+<div id="conflict-alert">
+  <strong>⚠ File Conflict Detected</strong>
+  <div id="conflict-detail" style="margin-top:0.4rem;"></div>
+</div>
+
+<div class="agents-grid">
+  <div class="agent-card agent-a" id="card-a">
+    <div class="card-header">
+      <div class="agent-label"><span class="agent-dot"></span> Agent A</div>
+      <span class="status-badge status-idle" id="badge-a">idle</span>
+    </div>
+    <div class="field">
+      <div class="field-label">Current Task</div>
+      <div class="field-value empty" id="task-a">—</div>
+    </div>
+    <div class="field">
+      <div class="field-label">Files Being Touched</div>
+      <div class="file-list" id="files-a"><span class="field-value empty">none</span></div>
+    </div>
+    <div class="field">
+      <div class="field-label">Blockers</div>
+      <ul class="blocker-list" id="blockers-a"><li style="color:var(--ok)">none</li></ul>
+    </div>
+    <div class="field">
+      <div class="field-label">Notes</div>
+      <div class="field-value empty" id="notes-a">—</div>
+    </div>
+    <div class="timestamp" id="ts-a">Last updated: –</div>
+  </div>
+
+  <div class="agent-card agent-b" id="card-b">
+    <div class="card-header">
+      <div class="agent-label"><span class="agent-dot"></span> Agent B</div>
+      <span class="status-badge status-idle" id="badge-b">idle</span>
+    </div>
+    <div class="field">
+      <div class="field-label">Current Task</div>
+      <div class="field-value empty" id="task-b">—</div>
+    </div>
+    <div class="field">
+      <div class="field-label">Files Being Touched</div>
+      <div class="file-list" id="files-b"><span class="field-value empty">none</span></div>
+    </div>
+    <div class="field">
+      <div class="field-label">Blockers</div>
+      <ul class="blocker-list" id="blockers-b"><li style="color:var(--ok)">none</li></ul>
+    </div>
+    <div class="field">
+      <div class="field-label">Notes</div>
+      <div class="field-value empty" id="notes-b">—</div>
+    </div>
+    <div class="timestamp" id="ts-b">Last updated: –</div>
+  </div>
+
+  <div class="agent-card agent-c" id="card-c">
+    <div class="card-header">
+      <div class="agent-label"><span class="agent-dot"></span> Agent C</div>
+      <span class="status-badge status-idle" id="badge-c">idle</span>
+    </div>
+    <div class="field">
+      <div class="field-label">Current Task</div>
+      <div class="field-value empty" id="task-c">—</div>
+    </div>
+    <div class="field">
+      <div class="field-label">Files Being Touched</div>
+      <div class="file-list" id="files-c"><span class="field-value empty">none</span></div>
+    </div>
+    <div class="field">
+      <div class="field-label">Blockers</div>
+      <ul class="blocker-list" id="blockers-c"><li style="color:var(--ok)">none</li></ul>
+    </div>
+    <div class="field">
+      <div class="field-label">Notes</div>
+      <div class="field-value empty" id="notes-c">—</div>
+    </div>
+    <div class="timestamp" id="ts-c">Last updated: –</div>
+  </div>
+</div>
+
+<div id="git-section">
+  <h2>Recent Commits</h2>
+  <div id="git-log"><span class="load-error">Configure repo above to load commit history.</span></div>
+</div>
+
+<script>
+  const AGENTS = ['a', 'b', 'c'];
+  const REFRESH_INTERVAL = 60000; // 60 seconds
+
+  function getRepo() {
+    return localStorage.getItem('coord_repo') || '';
+  }
+
+  function saveRepo() {
+    const val = document.getElementById('repo-input').value.trim();
+    if (!val || !val.includes('/')) { alert('Enter format: owner/repo'); return; }
+    localStorage.setItem('coord_repo', val);
+    document.getElementById('config-banner').classList.remove('visible');
+    loadAll();
+  }
+
+  function rawUrl(repo, path) {
+    return `https://raw.githubusercontent.com/${repo}/main/${path}`;
+  }
+
+  async function fetchJSON(url) {
+    const r = await fetch(url + '?t=' + Date.now());
+    if (!r.ok) throw new Error(`HTTP ${r.status}`);
+    return r.json();
+  }
+
+  function setBadge(id, status) {
+    const el = document.getElementById('badge-' + id);
+    el.className = 'status-badge status-' + (status || 'idle');
+    el.textContent = status || 'idle';
+  }
+
+  function renderFiles(id, files, conflictSet) {
+    const el = document.getElementById('files-' + id);
+    if (!files || files.length === 0) {
+      el.innerHTML = '<span class="field-value empty">none</span>';
+      return;
+    }
+    el.innerHTML = files.map(f => {
+      const cls = conflictSet.has(f) ? 'file-tag conflict' : 'file-tag';
+      return `<span class="${cls}">${f}</span>`;
+    }).join('');
+  }
+
+  function renderBlockers(id, blockers) {
+    const el = document.getElementById('blockers-' + id);
+    if (!blockers || blockers.length === 0) {
+      el.innerHTML = '<li style="color:var(--ok)">none</li>';
+      return;
+    }
+    el.innerHTML = blockers.map(b => `<li>${b}</li>`).join('');
+  }
+
+  function findConflicts(data) {
+    const fileOwners = {}; // file -> [agent, ...]
+    AGENTS.forEach(id => {
+      const d = data[id];
+      if (!d || !d.files) return;
+      d.files.forEach(f => {
+        if (!fileOwners[f]) fileOwners[f] = [];
+        fileOwners[f].push('Agent ' + id.toUpperCase());
+      });
+    });
+    const conflicts = Object.entries(fileOwners).filter(([, owners]) => owners.length > 1);
+    return conflicts; // [[file, [ownerA, ownerB]], ...]
+  }
+
+  function updateConflictAlert(conflicts) {
+    const el = document.getElementById('conflict-alert');
+    const detail = document.getElementById('conflict-detail');
+    if (conflicts.length === 0) {
+      el.classList.remove('visible');
+      return;
+    }
+    el.classList.add('visible');
+    detail.innerHTML = conflicts.map(([file, owners]) =>
+      `<div style="margin-top:0.25rem"><code>${file}</code> is claimed by <strong>${owners.join(' and ')}</strong> — coordinate before editing.</div>`
+    ).join('');
+  }
+
+  async function loadAll() {
+    const repo = getRepo();
+    document.getElementById('last-refresh').textContent = 'Refreshing…';
+
+    if (!repo) {
+      document.getElementById('config-banner').classList.add('visible');
+      document.getElementById('last-refresh').textContent = 'Not configured';
+      return;
+    }
+
+    const results = {};
+    await Promise.all(AGENTS.map(async id => {
+      try {
+        const d = await fetchJSON(rawUrl(repo, `agent-status/agent-${id}.json`));
+        results[id] = d;
+
+        document.getElementById('task-' + id).textContent = d.currentTask || '—';
+        document.getElementById('task-' + id).className = 'field-value' + (d.currentTask ? '' : ' empty');
+        document.getElementById('notes-' + id).textContent = d.notes || '—';
+        document.getElementById('notes-' + id).className = 'field-value' + (d.notes ? '' : ' empty');
+        document.getElementById('ts-' + id).textContent = 'Last updated: ' + (d.lastUpdated || 'unknown');
+        setBadge(id, d.status);
+        renderBlockers(id, d.blockers);
+      } catch (e) {
+        results[id] = null;
+        document.getElementById('task-' + id).textContent = 'Could not load status';
+        document.getElementById('task-' + id).className = 'field-value empty';
+      }
+    }));
+
+    // conflict detection — run after all data loaded
+    const conflicts = findConflicts(results);
+    const conflictFiles = new Set(conflicts.map(([f]) => f));
+    updateConflictAlert(conflicts);
+    AGENTS.forEach(id => {
+      const files = results[id]?.files || [];
+      renderFiles(id, files, conflictFiles);
+    });
+
+    // load commit history via GitHub API
+    await loadCommits(repo);
+
+    document.getElementById('last-refresh').textContent = 'Updated ' + new Date().toLocaleTimeString();
+  }
+
+  async function loadCommits(repo) {
+    const gitLog = document.getElementById('git-log');
+    try {
+      const r = await fetch(`https://api.github.com/repos/${repo}/commits?per_page=15`);
+      if (!r.ok) throw new Error();
+      const commits = await r.json();
+      gitLog.innerHTML = commits.map(c => {
+        const sha = c.sha.slice(0, 7);
+        const author = (c.commit.author.name || '').slice(0, 12);
+        const msg = c.commit.message.split('\n')[0];
+        const isStatus = msg.startsWith('[status]');
+        return `<div class="commit-row">
+          <span class="commit-sha">${sha}</span>
+          <span class="commit-author">${author}</span>
+          <span class="commit-msg ${isStatus ? 'status-commit' : ''}">${msg}</span>
+        </div>`;
+      }).join('');
+    } catch {
+      gitLog.innerHTML = '<span class="load-error">Could not load commits (may need GitHub auth or check repo name).</span>';
+    }
+  }
+
+  // Init
+  const saved = getRepo();
+  if (saved) {
+    document.getElementById('repo-input').value = saved;
+    document.getElementById('config-banner').classList.remove('visible');
+    loadAll();
+  }
+
+  // Auto-refresh every 60s
+  setInterval(loadAll, REFRESH_INTERVAL);
+</script>
+</body>
+</html>

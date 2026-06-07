@@ -1,0 +1,10 @@
+{
+  "agent": "A",
+  "status": "idle",
+  "currentTask": "",
+  "files": [],
+  "blockers": [],
+  "waitingOn": null,
+  "lastUpdated": "",
+  "notes": ""
+}
