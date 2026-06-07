@@ -8,5 +8,5 @@
   "blockers": [],
   "waitingOn": null,
   "lastUpdated": "2026-06-07T01:00:00Z",
-  "notes": "Lane 2 (Voice) DONE: voice_id enrolled, voice/config.py ready for Tony, audio/demo/{update,blocker,slack_summary}.mp3 cached in cloned voice. Starting Lane 1: replace brain/retrieval.py stub with real Moss retrieval."
+  "notes": "Lane 2 (Voice) DONE: voice_id enrolled, voice/config.py ready for Tony, audio/demo/{update,blocker,slack_summary}.wav cached in cloned voice (WAV format, not mp3). Starting Lane 1: replace brain/retrieval.py stub with real Moss retrieval."
 }
