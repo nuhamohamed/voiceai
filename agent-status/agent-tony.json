@@ -1,10 +1,14 @@
 {
   "agent": "Tony",
-  "status": "idle",
-  "currentTask": "",
-  "files": [],
+  "status": "working",
+  "currentTask": "Lane 4 (Live Agent): design spec on feat/tony-live-agent — room + STT + live retrieve() trace + cached-clone-voice answers + Slack",
+  "files": [
+    "prds/04-LIVE-AGENT-DESIGN.md",
+    "prds/04-LIVE-AGENT.md",
+    "agent/ (new LiveKit agent code, not yet created)"
+  ],
   "blockers": [],
-  "waitingOn": null,
-  "lastUpdated": "2026-06-06",
-  "notes": "Foundation pushed: brain/retrieval.py (retrieve() stub), personas.py, data/sample_corpus.jsonl, scripts/harness.py, tests/. Harness + tests pass on stdlib. Melody & Nuha can start."
+  "waitingOn": "audio/demo/*.mp3 from Nuha (or regenerate via voice.cache_demo_lines) for Phase-1 playback",
+  "lastUpdated": "2026-06-07T07:00:00Z",
+  "notes": "Building on feat/tony-live-agent. Consuming (not editing) Nuha's seams: retrieve(), voice/config.py (STT_PLUGIN=deepgram, AUDIO_CACHE_DIR), personas.voice_id. Phase 1 = real live retrieve() drives on-screen trace + play cached clone-voice MP3 answer; Phase 2 = live LLM + Qwen tts_node. Why cached answers in P1: it's a recorded video, Nuha already cached answers in clone voice, so we get clone-voice on the moat with zero tts_node work while keeping retrieval genuinely live on screen."
 }
